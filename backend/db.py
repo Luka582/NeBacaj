@@ -31,6 +31,7 @@ class Store(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     link: Mapped[str | None] = mapped_column(Text, nullable=True)
+    phone_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     town: Mapped[str] = mapped_column(String, nullable=False)
     street: Mapped[str] = mapped_column(String, nullable=False)
     street_number: Mapped[str] = mapped_column(String, nullable=False)

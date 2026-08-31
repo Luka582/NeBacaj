@@ -6,6 +6,7 @@ from .db import StoreType
 class StoreResponse(BaseModel):
     id : str
     link : str | None
+    phone_number : int | None
     town : str
     street : str
     street_number : str
