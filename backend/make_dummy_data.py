@@ -4,12 +4,14 @@ import asyncio
 import os
 from datetime import datetime, timedelta
 from random import choice, randint, uniform
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 
 from .db import Product, Store, StoreType, async_session, engine, init_db
 
 DB_FILE = "nebacaj.db"
+SERBIA_TZ = ZoneInfo("Europe/Belgrade")
 
 NOVI_SAD_STORES = [
     (45.2452, 19.8427),
@@ -95,7 +97,7 @@ def _make_product(store: Store, index: int) -> Product:
         name=f"{choice(PRODUCT_NAMES)} #{index}",
         description="Opis proizvoda - Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis eu gravida lorem, vitae semper lectus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus pulvinar sem lectus, quis tincidunt libero viverra ac. Mauris condimentum augue vulputate tempus scelerisque. Donec id lobortis nulla, in sodales magna. In vel blandit massa, molestie hendrerit urna." if randint(0, 1) else None,
         is_active=store.is_active,
-        expiration_date=datetime.now() + timedelta(days=randint(1, 30), hours=randint(0, 23)) if randint(0, 1) else None,
+        expiration_date=datetime.now(SERBIA_TZ) + timedelta(days=randint(1, 30), hours=randint(0, 23)) if randint(0, 1) else None,
     )
 
 

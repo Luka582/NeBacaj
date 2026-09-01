@@ -97,10 +97,17 @@ async def get_stores(
 async def get_products(
     store_id: str,
     is_active: bool = Query(default=True, description="Filter by active status"),
+    today_only: bool = Query(default=True, description="Return only products posted today (Serbian time)"),
     db: AsyncSession = Depends(get_session),
 ) -> list[ProductMinimalResponse]:
-    """GET /products/{id} — list products belonging to the given store, filtered by active status."""
+    """GET /products/{id} — list products belonging to the given store, filtered by active status and posting day."""
     stmt = select(Product).where(Product.store_id == store_id, Product.is_active == is_active)
+
+    if today_only:
+        now = datetime.now(SERBIA_TZ)
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        stmt = stmt.where(Product.creation_date >= start_of_day)
+
     result = await db.execute(stmt)
     products = result.scalars().all()
     return [ProductMinimalResponse.model_validate(p) for p in products]

@@ -56,6 +56,7 @@ class ProductResponse(BaseModel):
     description: str | None
     is_active: bool
     expiration_date: datetime | None
+    creation_date: datetime
 
     model_config = {"from_attributes": True}
 
@@ -65,6 +66,6 @@ class ProductMinimalResponse(BaseModel):
     old_price: float
     new_price: float
     name: str
-    expiration_date: datetime
+    creation_date: datetime
 
     model_config = {"from_attributes": True}

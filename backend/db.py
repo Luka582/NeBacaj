@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, Integer, Enum
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -10,6 +11,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from collections.abc import AsyncGenerator
 
 DATABASE_URL = "sqlite+aiosqlite:///nebacaj.db"
+
+SERBIA_TZ = ZoneInfo("Europe/Belgrade")
+
+
+def now_serbia() -> datetime:
+    return datetime.now(SERBIA_TZ)
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -79,6 +86,7 @@ class Product(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     expiration_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    creation_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
 
 
 async def init_db() -> None:
