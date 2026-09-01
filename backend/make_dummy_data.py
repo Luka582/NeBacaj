@@ -95,7 +95,7 @@ def _make_product(store: Store, index: int) -> Product:
         name=f"{choice(PRODUCT_NAMES)} #{index}",
         description="Opis proizvoda - Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis eu gravida lorem, vitae semper lectus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus pulvinar sem lectus, quis tincidunt libero viverra ac. Mauris condimentum augue vulputate tempus scelerisque. Donec id lobortis nulla, in sodales magna. In vel blandit massa, molestie hendrerit urna." if randint(0, 1) else None,
         is_active=store.is_active,
-        expiration_date=datetime.now() + timedelta(days=randint(1, 30), hours=randint(0, 23)),
+        expiration_date=datetime.now() + timedelta(days=randint(1, 30), hours=randint(0, 23)) if randint(0, 1) else None,
     )
 
 

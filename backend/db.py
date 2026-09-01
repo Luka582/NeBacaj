@@ -78,7 +78,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    expiration_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    expiration_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 async def init_db() -> None:

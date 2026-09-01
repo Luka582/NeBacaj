@@ -55,7 +55,7 @@ class ProductResponse(BaseModel):
     name: str
     description: str | None
     is_active: bool
-    expiration_date: datetime
+    expiration_date: datetime | None
 
     model_config = {"from_attributes": True}
 
