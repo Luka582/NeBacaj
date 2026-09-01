@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime
+from math import asin, cos, radians, sin, sqrt
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Depends, HTTPException, Query
@@ -73,9 +74,21 @@ async def get_stores(
     town: str | None = Query(default=None, description="Filter stores by town"),
     is_active: bool = Query(default=True, description="Filter by active status"),
     only_opened: bool = Query(default=True, description="Return only currently open stores"),
+    latitude: float | None = Query(default=None, description="Latitude of the reference point"),
+    longitude: float | None = Query(default=None, description="Longitude of the reference point"),
     db: AsyncSession = Depends(get_session),
 ) -> list[StoreMinimalResponse]:
-    """GET /stores — list all stores, optionally filtered by town, active status, and whether they are open now."""
+    """GET /stores — list all stores, optionally filtered by town, active status, and whether they are open now.
+
+    If latitude and longitude are both provided, results are sorted ascending by haversine distance
+    from the reference point (closest first). Providing only one of them is invalid.
+    """
+    if (latitude is None) != (longitude is None):
+        raise HTTPException(
+            status_code=400,
+            detail="Both 'latitude' and 'longitude' query parameters must be provided together.",
+        )
+
     stmt = select(Store).where(Store.is_active == is_active)
     if town is not None:
         stmt = stmt.where(Store.town == town)
@@ -90,6 +103,18 @@ async def get_stores(
 
     result = await db.execute(stmt)
     stores = result.scalars().all()
+
+    if latitude is not None and longitude is not None:
+        def haversine_km(store_lat: float, store_lon: float) -> float:
+            R = 6371.0
+            lat1, lon1 = radians(latitude), radians(longitude)
+            lat2, lon2 = radians(store_lat), radians(store_lon)
+            dlat, dlon = lat2 - lat1, lon2 - lon1
+            a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+            return 2 * R * asin(sqrt(a))
+
+        stores.sort(key=lambda s: haversine_km(s.latitude, s.longitude))
+
     return [StoreMinimalResponse.model_validate(s) for s in stores]
 
 
