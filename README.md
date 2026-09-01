@@ -1,0 +1,1 @@
+Running the script for making dummy data: uv run python -m backend.make_dummy_data
