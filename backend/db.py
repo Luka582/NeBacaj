@@ -51,6 +51,21 @@ class Store(Base):
         nullable=False,
     )
 
+    opening_minute_mon: Mapped[int] = mapped_column(Integer, nullable=False)
+    closing_minute_mon: Mapped[int] = mapped_column(Integer, nullable=False)
+    opening_minute_tue: Mapped[int] = mapped_column(Integer, nullable=False)
+    closing_minute_tue: Mapped[int] = mapped_column(Integer, nullable=False)
+    opening_minute_wed: Mapped[int] = mapped_column(Integer, nullable=False)
+    closing_minute_wed: Mapped[int] = mapped_column(Integer, nullable=False)
+    opening_minute_thu: Mapped[int] = mapped_column(Integer, nullable=False)
+    closing_minute_thu: Mapped[int] = mapped_column(Integer, nullable=False)
+    opening_minute_fri: Mapped[int] = mapped_column(Integer, nullable=False)
+    closing_minute_fri: Mapped[int] = mapped_column(Integer, nullable=False)
+    opening_minute_sat: Mapped[int] = mapped_column(Integer, nullable=False)
+    closing_minute_sat: Mapped[int] = mapped_column(Integer, nullable=False)
+    opening_minute_sun: Mapped[int] = mapped_column(Integer, nullable=False)
+    closing_minute_sun: Mapped[int] = mapped_column(Integer, nullable=False)
+
 
 class Product(Base):
     __tablename__ = "products"

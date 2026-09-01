@@ -16,6 +16,20 @@ class StoreResponse(BaseModel):
     description : str | None
     is_active : bool
     store_type : StoreType
+    opening_minute_mon: int
+    closing_minute_mon: int
+    opening_minute_tue: int
+    closing_minute_tue: int
+    opening_minute_wed: int
+    closing_minute_wed: int
+    opening_minute_thu: int
+    closing_minute_thu: int
+    opening_minute_fri: int
+    closing_minute_fri: int
+    opening_minute_sat: int
+    closing_minute_sat: int
+    opening_minute_sun: int
+    closing_minute_sun: int
 
     model_config = {"from_attributes": True}
 
