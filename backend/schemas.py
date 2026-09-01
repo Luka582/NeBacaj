@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 from datetime import datetime
 from .db import StoreType
 
@@ -49,9 +49,9 @@ class StoreMinimalResponse(BaseModel):
 class ProductResponse(BaseModel):
     id: str
     store_id: str
-    amount: int | None
-    old_price: float
-    new_price: float
+    amount: int | None = Field(default=None, ge=1)
+    old_price: float = Field(ge=0)
+    new_price: float = Field(ge=0)
     name: str
     description: str | None
     is_active: bool
@@ -60,12 +60,26 @@ class ProductResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @model_validator(mode="after")
+    def _check_product_constraints(self) -> "ProductResponse":
+        if self.old_price < self.new_price:
+            raise ValueError("old_price must be greater than or equal to new_price")
+        if self.expiration_date is not None and self.expiration_date < self.creation_date:
+            raise ValueError("expiration_date must be greater than or equal to creation_date")
+        return self
+
 class ProductMinimalResponse(BaseModel):
     id: str
-    amount: int | None
-    old_price: float
-    new_price: float
+    amount: int | None = Field(default=None, ge=1)
+    old_price: float = Field(ge=0)
+    new_price: float = Field(ge=0)
     name: str
     creation_date: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def _check_price_constraints(self) -> "ProductMinimalResponse":
+        if self.old_price < self.new_price:
+            raise ValueError("old_price must be greater than or equal to new_price")
+        return self
