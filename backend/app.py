@@ -58,6 +58,15 @@ DAY_CLOSE_COLUMNS = {
 }
 
 
+def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    R = 6371.0
+    p1, l1 = radians(lat1), radians(lng1)
+    p2, l2 = radians(lat2), radians(lng2)
+    dlat, dlng = p2 - p1, l2 - l1
+    a = sin(dlat / 2) ** 2 + cos(p1) * cos(p2) * sin(dlng / 2) ** 2
+    return 2 * R * asin(sqrt(a))
+
+
 @app.get("/store/{store_id}", response_model=StoreResponse)
 async def get_store(store_id: str, db: AsyncSession = Depends(get_session)) -> StoreResponse:
     """GET /store/{id} — fetch a single store by its id, or 404 if not found."""
@@ -114,17 +123,32 @@ async def get_stores(
     stores = result.scalars().all()
 
     if latitude is not None and longitude is not None:
-        def haversine_km(store_lat: float, store_lon: float) -> float:
-            R = 6371.0
-            lat1, lon1 = radians(latitude), radians(longitude)
-            lat2, lon2 = radians(store_lat), radians(store_lon)
-            dlat, dlon = lat2 - lat1, lon2 - lon1
-            a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-            return 2 * R * asin(sqrt(a))
-
-        stores.sort(key=lambda s: haversine_km(s.latitude, s.longitude))
+        stores.sort(key=lambda s: haversine_km(latitude, longitude, s.latitude, s.longitude))
 
     return [StoreMinimalResponse.model_validate(s) for s in stores]
+
+
+@app.get("/town/{latitude}/{longitude}", response_model=str)
+async def get_town_from_coordinates(
+    latitude: float,
+    longitude: float,
+    db: AsyncSession = Depends(get_session),
+) -> str:
+    """GET /town/{latitude}/{longitude} — return the town name most frequent among the 20 closest active stores."""
+    result = await db.execute(select(Store).where(Store.is_active.is_(True)))
+    stores = result.scalars().all()
+
+    stores.sort(key=lambda s: haversine_km(latitude, longitude, s.latitude, s.longitude))
+
+    closest = stores[:20]
+    if not closest:
+        raise HTTPException(status_code=404, detail="No stores found")
+
+    counts: dict[str, int] = {}
+    for store in closest:
+        counts[store.town] = counts.get(store.town, 0) + 1
+
+    return max(counts, key=lambda t: counts[t])
 
 
 @app.get("/products/{store_id}", response_model=list[ProductMinimalResponse])

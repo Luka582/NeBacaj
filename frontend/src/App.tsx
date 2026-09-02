@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -70,13 +70,27 @@ function App() {
   const [stores, setStores] = useState<Store[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selectedTown, setSelectedTown] = useState<string>('Sve')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [radius, setRadius] = useState(50)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch('/config.json')
       .then((r) => r.json())
       .then((data: Config) => setRadius(data.STORES_RADIUS))
       .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   useEffect(() => {
@@ -91,9 +105,19 @@ function App() {
 
   const towns = Array.from(new Set(stores.map((s) => s.town))).sort()
 
+  const filteredTowns = towns.filter((t) =>
+    t.toLowerCase().includes(searchQuery.trim().toLowerCase())
+  )
+
   const filtered = selectedTown === 'Sve'
     ? stores
     : stores.filter((s) => s.town === selectedTown)
+
+  function selectTown(town: string) {
+    setSelectedTown(town)
+    setSearchQuery(town === 'Sve' ? '' : town)
+    setIsDropdownOpen(false)
+  }
 
   const center: [number, number] = (() => {
     if (selectedTown === 'Sve' || filtered.length === 0) return DEFAULT_CENTER
@@ -107,6 +131,7 @@ function App() {
       <MapContainer
         center={DEFAULT_CENTER}
         zoom={7}
+        zoomControl={false}
         className="z-0 h-full w-full"
         preferCanvas
       >
@@ -129,40 +154,76 @@ function App() {
       <div className="pointer-events-auto absolute top-4 left-1/2 z-[1000] w-[92%] max-w-sm -translate-x-1/2">
         <div className="rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur">
           <div className="mb-3">
-            <label htmlFor="town-select" className="mb-1 block text-xs font-medium text-slate-500">
-              Izaberi grad
-            </label>
-            <select
-              id="town-select"
-              value={selectedTown}
-              onChange={(e) => setSelectedTown(e.target.value)}
-              className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-            >
-              <option value="Sve">Svi gradovi</option>
-              {towns.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <div ref={dropdownRef} className="relative">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-slate-400"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                ref={inputRef}
+                id="town-search"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setIsDropdownOpen(true)
+                }}
+                onFocus={() => setIsDropdownOpen(true)}
+                placeholder="Unesi naziv grada..."
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-10 pl-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+              {isDropdownOpen && (
+                <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTown('Sve')}
+                      className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
+                    >
+                      Svi gradovi
+                    </button>
+                  </li>
+                  {filteredTowns.length === 0 ? (
+                    <li className="px-3 py-2 text-sm text-slate-400">Nema rezultata</li>
+                  ) : (
+                    filteredTowns.map((t) => (
+                      <li key={t}>
+                        <button
+                          type="button"
+                          onClick={() => selectTown(t)}
+                          className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
+                        >
+                          {t}
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              )}
+            </div>
           </div>
 
           {error ? (
             <p className="text-center text-sm text-red-500">{error}</p>
           ) : (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">
-                <span className="font-semibold text-slate-700">{filtered.length}</span> prodavnica
-              </p>
-              <div className="flex gap-2">
-                {Object.entries(STORE_LABELS).map(([type, label]) => (
-                  <span key={type} className="flex items-center gap-1 text-xs text-slate-500">
-                    <span
-                      className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: STORE_COLORS[type] }}
-                    />
-                    {label}
-                  </span>
-                ))}
-              </div>
+            <div className="flex items-center justify-center gap-3">
+              {Object.entries(STORE_LABELS).map(([type, label]) => (
+                <span key={type} className="flex items-center gap-1 text-xs text-slate-500">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: STORE_COLORS[type] }}
+                  />
+                  {label}
+                </span>
+              ))}
             </div>
           )}
         </div>
