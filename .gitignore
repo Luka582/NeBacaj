@@ -11,3 +11,8 @@ wheels/
 
 #database
 nebacaj.db
+
+.env
+
+# Node
+node_modules/
