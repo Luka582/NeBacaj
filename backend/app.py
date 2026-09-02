@@ -6,7 +6,7 @@ from math import asin, cos, radians, sin, sqrt
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db import Store, Product, get_session, init_db
@@ -136,3 +136,15 @@ async def get_products(
     result = await db.execute(stmt)
     products = result.scalars().all()
     return [ProductMinimalResponse.model_validate(p) for p in products]
+
+
+@app.get("/towns", response_model=list[str])
+async def get_towns(db: AsyncSession = Depends(get_session)) -> list[str]:
+    """GET /towns — list all town names, sorted by number of stores descending (most stores first)."""
+    stmt = (
+        select(Store.town)
+        .group_by(Store.town)
+        .order_by(func.count(Store.id).desc())
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
