@@ -66,6 +66,53 @@ function Recenter({ center, radiusKm }: { center: [number, number]; radiusKm: nu
   return null
 }
 
+function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length
+  const n = b.length
+  if (m === 0) return n
+  if (n === 0) return m
+  const dp = new Array(n + 1)
+  for (let j = 0; j <= n; j++) dp[j] = j
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0]
+    dp[0] = i
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j]
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost)
+      prev = tmp
+    }
+  }
+  return dp[n]
+}
+
+function fuzzyMatchTowns(towns: string[], query: string): string[] {
+  const q = normalize(query)
+  return towns
+    .filter((town) => {
+      const t = normalize(town)
+      if (t.startsWith(q) || t.includes(q)) return true
+      return levenshtein(q, t) <= 2
+    })
+    .sort((a, b) => {
+      const na = normalize(a)
+      const nb = normalize(b)
+      const startA = na.startsWith(q)
+      const startB = nb.startsWith(q)
+      if (startA !== startB) return startA ? -1 : 1
+      const distA = levenshtein(q, na)
+      const distB = levenshtein(q, nb)
+      return distA - distB
+    })
+}
+
 function App() {
   const [stores, setStores] = useState<Store[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -105,9 +152,10 @@ function App() {
 
   const towns = Array.from(new Set(stores.map((s) => s.town))).sort()
 
-  const filteredTowns = towns.filter((t) =>
-    t.toLowerCase().includes(searchQuery.trim().toLowerCase())
-  )
+  const query = searchQuery.trim()
+  const filteredTowns = query.length === 0
+    ? towns
+    : fuzzyMatchTowns(towns, query)
 
   const filtered = selectedTown === 'Sve'
     ? stores
