@@ -53,18 +53,33 @@ function makePinIcon(type: string) {
   })
 }
 
-function Recenter({ center, radiusKm }: { center: [number, number]; radiusKm: number }) {
+type MapRequest =
+  | { seq: number; type: 'location'; lat: number; lng: number }
+  | { seq: number; type: 'town'; bounds: [[number, number], [number, number]] }
+
+function MapController({ request }: { request: MapRequest | null }) {
   const map = useMap()
+  const lastSeq = useRef<number>(-1)
   useEffect(() => {
-    const dLat = radiusKm / 111
-    const dLng = radiusKm / (111 * Math.cos((center[0] * Math.PI) / 180))
-    map.fitBounds([
-      [center[0] - dLat, center[1] - dLng],
-      [center[0] + dLat, center[1] + dLng],
-    ])
-  }, [center, radiusKm, map])
+    if (!request || request.seq === lastSeq.current) return
+    lastSeq.current = request.seq
+    if (request.type === 'location') {
+      map.setView([request.lat, request.lng], 13)
+    } else {
+      map.fitBounds(request.bounds)
+    }
+  }, [request, map])
   return null
 }
+
+const userLocationIcon = L.divIcon({
+  className: '',
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+  html: `
+    <div style="width:22px;height:22px;border-radius:50%;background:#3b82f6;border:4px solid white;box-shadow:0 0 0 2px #3b82f6, 0 2px 6px rgba(0,0,0,0.3)"></div>
+  `,
+})
 
 function normalize(s: string): string {
   return s
@@ -120,8 +135,12 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [radius, setRadius] = useState(50)
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
+  const [locationWarning, setLocationWarning] = useState<string | null>(null)
+  const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const requestSeq = useRef(0)
 
   useEffect(() => {
     fetch('/config.json')
@@ -157,22 +176,84 @@ function App() {
     ? towns
     : fuzzyMatchTowns(towns, query)
 
-  const filtered = selectedTown === 'Sve'
-    ? stores
-    : stores.filter((s) => s.town === selectedTown)
+  function storesForTown(town: string): Store[] {
+    return town === 'Sve' ? stores : stores.filter((s) => s.town === town)
+  }
+
+  function fitToTown(town: string) {
+    if (town === 'Sve') {
+      if (stores.length === 0) return
+      const lats = stores.map((s) => s.latitude)
+      const lngs = stores.map((s) => s.longitude)
+      const dLat = radius / 111
+      const dLng = radius / (111 * Math.cos(((Math.min(...lats) + Math.max(...lats)) / 2 * Math.PI) / 180))
+      const bounds: [[number, number], [number, number]] = [
+        [Math.min(...lats) - dLat, Math.min(...lngs) - dLng],
+        [Math.max(...lats) + dLat, Math.max(...lngs) + dLng],
+      ]
+      requestSeq.current += 1
+      setMapRequest({ seq: requestSeq.current, type: 'town', bounds })
+      return
+    }
+    const townStores = storesForTown(town)
+    if (townStores.length === 0) return
+    const lats = townStores.map((s) => s.latitude)
+    const lngs = townStores.map((s) => s.longitude)
+    const dLat = radius / 111
+    const dLng = radius / (111 * Math.cos(((Math.min(...lats) + Math.max(...lats)) / 2 * Math.PI) / 180))
+    const bounds: [[number, number], [number, number]] = [
+      [Math.min(...lats) - dLat, Math.min(...lngs) - dLng],
+      [Math.max(...lats) + dLat, Math.max(...lngs) + dLng],
+    ]
+    requestSeq.current += 1
+    setMapRequest({ seq: requestSeq.current, type: 'town', bounds })
+  }
 
   function selectTown(town: string) {
     setSelectedTown(town)
     setSearchQuery(town === 'Sve' ? '' : town)
     setIsDropdownOpen(false)
+    fitToTown(town)
   }
 
-  const center: [number, number] = (() => {
-    if (selectedTown === 'Sve' || filtered.length === 0) return DEFAULT_CENTER
-    const avgLat = filtered.reduce((sum, s) => sum + s.latitude, 0) / filtered.length
-    const avgLng = filtered.reduce((sum, s) => sum + s.longitude, 0) / filtered.length
-    return [avgLat, avgLng]
-  })()
+  const filtered = selectedTown === 'Sve'
+    ? stores
+    : stores.filter((s) => s.town === selectedTown)
+
+  function handleUseMyLocation() {
+    if (!navigator.geolocation) {
+      showLocationWarning('Lokacija nije omogućena u ovom pregledaču')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        setUserLocation([lat, lng])
+        requestSeq.current += 1
+        setMapRequest({ seq: requestSeq.current, type: 'location', lat, lng })
+        fetch(`/api/town/${lat}/${lng}`)
+          .then((r) => {
+            if (!r.ok) throw new Error()
+            return r.json()
+          })
+          .then((town) => {
+            if (town) {
+              setSelectedTown(town)
+              setSearchQuery(town)
+              setIsDropdownOpen(false)
+            }
+          })
+          .catch(() => {})
+      },
+      () => showLocationWarning('Lokacija nije omogućena'),
+    )
+  }
+
+  function showLocationWarning(msg: string) {
+    setLocationWarning(msg)
+    window.setTimeout(() => setLocationWarning(null), 3500)
+  }
 
   return (
     <div className="relative h-full w-full">
@@ -189,7 +270,10 @@ function App() {
           subdomains="abcd"
           maxZoom={20}
         />
-        <Recenter center={center} radiusKm={radius} />
+        <MapController request={mapRequest} />
+        {userLocation && (
+          <Marker position={userLocation} icon={userLocationIcon} zIndexOffset={1000} />
+        )}
         {filtered.map((store) => (
           <Marker
             key={store.id}
@@ -199,8 +283,27 @@ function App() {
         ))}
       </MapContainer>
 
-      <div className="pointer-events-auto absolute top-4 left-1/2 z-[1000] w-[92%] max-w-sm -translate-x-1/2">
-        <div className="rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur">
+      <div className="pointer-events-auto absolute top-4 left-1/2 z-[1000] flex w-[95%] max-w-md -translate-x-1/2 items-start justify-center gap-2">
+        <button
+          type="button"
+          onClick={handleUseMyLocation}
+          title="Koristi moju lokaciju"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/95 text-blue-600 shadow-lg backdrop-blur transition hover:bg-blue-50"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5"
+          >
+            <path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z" />
+            <circle cx="12" cy="10" r="2.5" />
+          </svg>
+        </button>
+        <div className="flex-1 rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur">
           <div className="mb-3">
             <div ref={dropdownRef} className="relative">
               <svg
@@ -275,6 +378,11 @@ function App() {
             </div>
           )}
         </div>
+        {locationWarning && (
+          <p className="pointer-events-none absolute top-3 left-1/2 z-[1001] -translate-x-1/2 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-lg">
+            {locationWarning}
+          </p>
+        )}
       </div>
     </div>
   )
