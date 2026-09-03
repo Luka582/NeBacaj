@@ -56,6 +56,24 @@ cd frontend && npm run dev -- --host 0.0.0.0
 
 The frontend proxies `/api/*` requests to the backend automatically.
 
+## config.json
+
+Runtime configuration lives in `config.json` at the project root (outside `frontend/` and `backend/`). It is served to the frontend by a custom Vite plugin during development.
+
+```json
+{
+    "STORES_RADIUS": 3.0,
+    "LOCATION_RADIUS": 0.5
+}
+```
+
+| Key | Type | Description |
+| --- | ---- | ----------- |
+| `STORES_RADIUS` | number (km) | Zoom extent used when the map is centered on a selected town (or all stores): the view fits a square of `STORES_RADIUS` km around the town/store bounds. |
+| `LOCATION_RADIUS` | number (km) | Zoom extent used when the **location button** is clicked: the map fits a square of `LOCATION_RADIUS` km around the user's GPS position. This only affects the location button, not town selection. |
+
+Both values are in kilometers; lower values produce a closer zoom.
+
 ## Dummy Data
 
 Populate the database with 10 sample stores (5 in Novi Sad, 5 in Beograd) and 0–8 products each:
