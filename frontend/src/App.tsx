@@ -307,27 +307,8 @@ function App() {
         ))}
       </MapContainer>
 
-      <div className="pointer-events-auto absolute top-4 left-1/2 z-[1000] flex w-[95%] max-w-md -translate-x-1/2 items-start justify-center gap-2">
-        <button
-          type="button"
-          onClick={handleUseMyLocation}
-          title="Koristi moju lokaciju"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/95 text-blue-600 shadow-lg backdrop-blur transition hover:bg-blue-50"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-5 w-5"
-          >
-            <path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z" />
-            <circle cx="12" cy="10" r="2.5" />
-          </svg>
-        </button>
-        <div className="flex-1 rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur">
+      <div className="pointer-events-auto absolute top-4 left-1/2 z-[1000] flex w-full -translate-x-1/2 flex-col items-center gap-2 sm:w-auto">
+        <div className="w-[92%] max-w-sm rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur sm:max-w-none sm:w-96">
           <div className="mb-3">
             <div ref={dropdownRef} className="relative">
               <svg
@@ -427,12 +408,53 @@ function App() {
             </div>
           )}
         </div>
+        <div className="flex w-[92%] max-w-sm justify-end sm:hidden">
+          <button
+            type="button"
+            onClick={handleUseMyLocation}
+            title="Koristi moju lokaciju"
+            className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-blue-600 shadow-lg backdrop-blur transition hover:bg-blue-50"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+            >
+              <path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z" />
+              <circle cx="12" cy="10" r="2.5" />
+            </svg>
+          </button>
+        </div>
         {locationWarning && (
           <p className="pointer-events-none absolute top-3 left-1/2 z-[1001] -translate-x-1/2 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-lg">
             {locationWarning}
           </p>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={handleUseMyLocation}
+        title="Koristi moju lokaciju"
+        className="hidden h-12 w-12 items-center justify-center rounded-2xl bg-white/95 text-blue-600 shadow-lg backdrop-blur transition hover:bg-blue-50 sm:absolute sm:top-4 sm:right-4 sm:z-[1000] sm:flex"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-11 w-11"
+        >
+          <path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z" />
+          <circle cx="12" cy="10" r="2.5" />
+        </svg>
+      </button>
     </div>
   )
 }
