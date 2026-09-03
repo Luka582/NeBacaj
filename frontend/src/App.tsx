@@ -314,7 +314,7 @@ function App() {
       </MapContainer>
 
       <div className="pointer-events-auto absolute top-4 left-1/2 z-[1000] flex w-full -translate-x-1/2 flex-col items-center gap-2 sm:w-auto">
-        <div className="w-[92%] max-w-sm rounded-2xl bg-white/95 p-4 shadow-lg backdrop-blur sm:max-w-none sm:w-96">
+        <div className="w-[92%] max-w-sm rounded-2xl bg-white/95 p-3 shadow-lg backdrop-blur sm:max-w-none sm:w-96">
           <div className="mb-3">
             <div ref={dropdownRef} className="relative">
               <svg
