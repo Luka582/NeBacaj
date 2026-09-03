@@ -143,6 +143,13 @@ function App() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const [locationWarning, setLocationWarning] = useState<string | null>(null)
   const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
+  const [recentTowns, setRecentTowns] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('recentTowns') || '[]')
+    } catch {
+      return []
+    }
+  })
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const requestSeq = useRef(0)
@@ -222,6 +229,15 @@ function App() {
     setSearchQuery(town === 'Sve' ? '' : town)
     setIsDropdownOpen(false)
     fitToTown(town)
+    if (town !== 'Sve') {
+      setRecentTowns((prev) => {
+        const next = [town, ...prev.filter((t) => t !== town)].slice(0, 5)
+        try {
+          localStorage.setItem('recentTowns', JSON.stringify(next))
+        } catch {}
+        return next
+      })
+    }
   }
 
   const filtered = selectedTown === 'Sve'
@@ -335,7 +351,10 @@ function App() {
                   setSearchQuery(e.target.value)
                   setIsDropdownOpen(true)
                 }}
-                onFocus={() => setIsDropdownOpen(true)}
+                onFocus={() => {
+                  setSearchQuery('')
+                  setIsDropdownOpen(true)
+                }}
                 placeholder="Unesi naziv grada..."
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-10 pl-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
               />
@@ -350,20 +369,42 @@ function App() {
                       Svi gradovi
                     </button>
                   </li>
-                  {filteredTowns.length === 0 ? (
+                  {query.length === 0 && recentTowns.length > 0 && (
+                    <>
+                      <li className="border-t border-slate-100 px-3 pt-2 pb-1 text-xs font-semibold text-slate-400">
+                        Nedavni
+                      </li>
+                      {recentTowns
+                        .filter((t) => towns.includes(t))
+                        .map((t) => (
+                          <li key={t}>
+                            <button
+                              type="button"
+                              onClick={() => selectTown(t)}
+                              className="w-full px-3 py-2 text-left text-sm font-medium text-blue-600 hover:bg-blue-50"
+                            >
+                              {t}
+                            </button>
+                          </li>
+                        ))}
+                    </>
+                  )}
+                  {filteredTowns.length === 0 && query.length > 0 ? (
                     <li className="px-3 py-2 text-sm text-slate-400">Nema rezultata</li>
                   ) : (
-                    filteredTowns.map((t) => (
-                      <li key={t}>
-                        <button
-                          type="button"
-                          onClick={() => selectTown(t)}
-                          className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
-                        >
-                          {t}
-                        </button>
-                      </li>
-                    ))
+                    filteredTowns
+                      .filter((t) => query.length > 0 || !recentTowns.includes(t))
+                      .map((t) => (
+                        <li key={t}>
+                          <button
+                            type="button"
+                            onClick={() => selectTown(t)}
+                            className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
+                          >
+                            {t}
+                          </button>
+                        </li>
+                      ))
                   )}
                 </ul>
               )}
