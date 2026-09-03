@@ -142,6 +142,7 @@ function App() {
   const [locationRadius, setLocationRadius] = useState(0.5)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const [locationWarning, setLocationWarning] = useState<string | null>(null)
+  const [warningLeaving, setWarningLeaving] = useState(false)
   const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
   const [recentTowns, setRecentTowns] = useState<string[]>(() => {
     try {
@@ -275,8 +276,13 @@ function App() {
   }
 
   function showLocationWarning(msg: string) {
+    setWarningLeaving(false)
     setLocationWarning(msg)
-    window.setTimeout(() => setLocationWarning(null), 3500)
+    window.setTimeout(() => setWarningLeaving(true), 3000)
+    window.setTimeout(() => {
+      setLocationWarning(null)
+      setWarningLeaving(false)
+    }, 3500)
   }
 
   return (
@@ -408,7 +414,7 @@ function App() {
             </div>
           )}
         </div>
-        <div className="flex w-[92%] max-w-sm justify-end sm:hidden">
+        <div className="relative flex w-[92%] max-w-sm justify-end sm:hidden">
           <button
             type="button"
             onClick={handleUseMyLocation}
@@ -428,9 +434,18 @@ function App() {
               <circle cx="12" cy="10" r="2.5" />
             </svg>
           </button>
+          {locationWarning && (
+            <p
+              className={`pointer-events-none absolute top-0 left-1/2 z-[1001] -translate-x-1/2 whitespace-nowrap rounded-lg bg-red-500 px-3 py-1 text-sm font-medium text-white shadow-lg transition-opacity duration-500 ${warningLeaving ? 'opacity-0' : 'opacity-100'}`}
+            >
+              {locationWarning}
+            </p>
+          )}
         </div>
         {locationWarning && (
-          <p className="pointer-events-none absolute top-3 left-1/2 z-[1001] -translate-x-1/2 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-lg">
+          <p
+            className={`pointer-events-none absolute top-1/2 left-1/2 z-[1001] hidden -translate-x-1/2 translate-y-full whitespace-nowrap rounded-lg bg-red-500 px-3 py-1 text-sm font-medium text-white shadow-lg transition-opacity duration-500 sm:block ${warningLeaving ? 'opacity-0' : 'opacity-100'}`}
+          >
             {locationWarning}
           </p>
         )}
