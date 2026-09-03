@@ -9,6 +9,7 @@ const cartoUrl = `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/
 
 interface Config {
   STORES_RADIUS: number
+  LOCATION_RADIUS: number
 }
 
 interface Store {
@@ -54,7 +55,7 @@ function makePinIcon(type: string) {
 }
 
 type MapRequest =
-  | { seq: number; type: 'location'; lat: number; lng: number }
+  | { seq: number; type: 'location'; lat: number; lng: number; radiusKm: number }
   | { seq: number; type: 'town'; bounds: [[number, number], [number, number]] }
 
 function MapController({ request }: { request: MapRequest | null }) {
@@ -64,7 +65,10 @@ function MapController({ request }: { request: MapRequest | null }) {
     if (!request || request.seq === lastSeq.current) return
     lastSeq.current = request.seq
     if (request.type === 'location') {
-      map.setView([request.lat, request.lng], 13)
+      map.fitBounds([
+        [request.lat - request.radiusKm / 111, request.lng - request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
+        [request.lat + request.radiusKm / 111, request.lng + request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
+      ])
     } else {
       map.fitBounds(request.bounds)
     }
@@ -135,6 +139,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [radius, setRadius] = useState(50)
+  const [locationRadius, setLocationRadius] = useState(0.5)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const [locationWarning, setLocationWarning] = useState<string | null>(null)
   const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
@@ -145,7 +150,10 @@ function App() {
   useEffect(() => {
     fetch('/config.json')
       .then((r) => r.json())
-      .then((data: Config) => setRadius(data.STORES_RADIUS))
+      .then((data: Config) => {
+        setRadius(data.STORES_RADIUS)
+        setLocationRadius(data.LOCATION_RADIUS)
+      })
       .catch(() => {})
   }, [])
 
@@ -231,7 +239,7 @@ function App() {
         const lng = pos.coords.longitude
         setUserLocation([lat, lng])
         requestSeq.current += 1
-        setMapRequest({ seq: requestSeq.current, type: 'location', lat, lng })
+        setMapRequest({ seq: requestSeq.current, type: 'location', lat, lng, radiusKm: locationRadius })
         fetch(`/api/town/${lat}/${lng}`)
           .then((r) => {
             if (!r.ok) throw new Error()
