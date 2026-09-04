@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -327,7 +327,20 @@ function App() {
         />
         <MapController request={mapRequest} />
         {userLocation && (
-          <Marker position={userLocation} icon={userLocationIcon} zIndexOffset={1000} />
+          <>
+            <Circle
+              center={userLocation}
+              radius={locationRadius * 1000}
+              pathOptions={{
+                color: '#3b82f6',
+                weight: 2,
+                dashArray: '6 6',
+                fillColor: 'rgba(59, 130, 246, 0.08)',
+                fillOpacity: 1,
+              }}
+            />
+            <Marker position={userLocation} icon={userLocationIcon} zIndexOffset={1000} />
+          </>
         )}
         {filtered.map((store) => (
           <Marker
