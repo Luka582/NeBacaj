@@ -14,23 +14,93 @@ DB_FILE = "nebacaj.db"
 SERBIA_TZ = ZoneInfo("Europe/Belgrade")
 
 NOVI_SAD_STORES = [
-    (45.2452, 19.8427),
-    (45.2545, 19.8424),
-    (45.2671, 19.8335),
-    (45.2640, 19.8322),
-    (45.2519, 19.8368),
+    (45.2551, 19.8450),
+    (45.2512, 19.8600),
+    (45.2470, 19.8280),
+    (45.2670, 19.8450),
+    (45.2730, 19.8400),
+    (45.2780, 19.8250),
+    (45.2620, 19.8780),
+    (45.2500, 19.8730),
+    (45.2400, 19.8500),
+    (45.2750, 19.8600),
+    (45.2590, 19.8150),
+    (45.2415, 19.8615),
+    (45.2680, 19.8120),
+    (45.2560, 19.8980),
+    (45.2460, 19.8840),
+    (45.2720, 19.8830),
+    (45.2550, 19.8300),
+    (45.2630, 19.8250),
+    (45.2760, 19.8440),
+    (45.2690, 19.8550),
 ]
 
 BELGRADE_STORES = [
-    (44.7866, 20.4489),
-    (44.8125, 20.4612),
-    (44.7982, 20.4693),
-    (44.8206, 20.4622),
-    (44.8310, 20.4250),
+    (44.8230, 20.4300),
+    (44.8050, 20.4780),
+    (44.8140, 20.4850),
+    (44.7990, 20.4550),
+    (44.8360, 20.4560),
+    (44.7850, 20.4480),
+    (44.8420, 20.5010),
+    (44.8180, 20.4130),
+    (44.8060, 20.4520),
+    (44.8290, 20.4700),
+    (44.7930, 20.4900),
+    (44.8140, 20.4310),
+    (44.8520, 20.4100),
+    (44.7890, 20.4670),
+    (44.8100, 20.4660),
+    (44.8260, 20.4480),
+    (44.8380, 20.4780),
+    (44.8000, 20.4410),
+    (44.8160, 20.4590),
+    (44.8630, 20.4650),
 ]
 
-NOVI_SAD_STREETS = ["Bulevar oslobođenja", "Svetozara Miletića", "Jevrejska", "Zmaj Jovina", "Bulevar cara Lazara"]
-BELGRADE_STREETS = ["Knez Mihailova", "Bulevar kralja Aleksandra", "Terazije", "Vuka Karadžića", "Bulevar Mihajla Pupina"]
+SUBOTICA_STORES = [
+    (46.1017, 19.6653),
+    (46.0880, 19.6580),
+    (46.1113, 19.6720),
+    (46.0955, 19.6850),
+    (46.1060, 19.6480),
+    (46.0920, 19.7000),
+]
+
+NIS_STORES = [
+    (43.3185, 21.8900),
+    (43.3250, 21.9080),
+    (43.3110, 21.8820),
+    (43.3200, 21.9300),
+    (43.3020, 21.8950),
+    (43.3350, 21.8990),
+]
+
+KRAGUJEVAC_STORES = [
+    (44.0120, 20.9110),
+    (44.0200, 20.9250),
+    (44.0080, 20.8980),
+    (44.0180, 20.8800),
+    (44.0040, 20.9200),
+    (44.0250, 20.9050),
+]
+
+ZRENJANIN_STORES = [
+    (45.3810, 20.3880),
+    (45.3730, 20.4000),
+    (45.3900, 20.3800),
+    (45.3760, 20.3600),
+    (45.3850, 20.4100),
+    (45.3650, 20.3900),
+]
+
+NOVI_SAD_STREETS = ["Bulevar oslobođenja", "Svetozara Miletića", "Jevrejska", "Zmaj Jovina", "Bulevar cara Lazara", "Futoška", "Ulica Kralja Petra I", "Bulevar Mihajla Pupina"]
+BELGRADE_STREETS = ["Knez Mihailova", "Bulevar kralja Aleksandra", "Terazije", "Vuka Karadžića", "Bulevar Mihajla Pupina", "Ulica Kralja Milana", "Ulica Kneza Miloša", "Bulevar oslobođenja"]
+SUBOTICA_STREETS = ["Ulica cara Dušana", "Ulica Matije Korvina", "Šandora Petefija", "Ulica Kralja Petra"]
+NIS_STREETS = ["Obrenovićeva", "Ulica Vojvode Putnika", "Ulica Nikole Pašića", "Bulevar Nemanjića", "Ulica Čair"]
+KRAGUJEVAC_STREETS = ["Ulica Svetozara Markovića", "Ulica Kralja Aleksandra", "Ulica Đure Pucara", "Ulica Ljube Nenadovića"]
+ZRENJANIN_STREETS = ["Ulica Kralja Aleksandra", "Ulica Subotička", "Ulica Kralja Petra Prvog", "Ulica Miloša Crnjanskog"]
 
 MARKET_NAMES = ["Maxi market", "Idea market", "Aroma market", "DIS market", "Univerexport market"]
 BAKERY_NAMES = ["Pekara Srem", "Pekara Mitra", "Pekara Razvoj", "Mlinpek", "Pekara Bulevar"]
@@ -114,6 +184,10 @@ async def populate() -> None:
         for town, streets, coords in [
             ("Novi Sad", NOVI_SAD_STREETS, NOVI_SAD_STORES),
             ("Beograd", BELGRADE_STREETS, BELGRADE_STORES),
+            ("Subotica", SUBOTICA_STREETS, SUBOTICA_STORES),
+            ("Niš", NIS_STREETS, NIS_STORES),
+            ("Kragujevac", KRAGUJEVAC_STREETS, KRAGUJEVAC_STORES),
+            ("Zrenjanin", ZRENJANIN_STREETS, ZRENJANIN_STORES),
         ]:
             for i, coord in enumerate(coords):
                 is_active = i != 0
