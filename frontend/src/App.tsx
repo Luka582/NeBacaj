@@ -21,6 +21,9 @@ interface Store {
   longitude: number
   name: string
   store_type: string
+  today_products_count: number
+  today_opening_minute: number
+  today_closing_minute: number
 }
 
 const STORE_LABELS: Record<string, string> = {
@@ -37,21 +40,30 @@ const STORE_COLORS: Record<string, string> = {
   other: '#8b5cf6',
 }
 
-function makePinIcon(type: string) {
-  const color = STORE_COLORS[type] ?? '#6b7280'
+const pinIconCache = new Map<string, L.DivIcon>()
 
-  return L.divIcon({
+function makePinIcon(type: string, dim: boolean) {
+  const key = `${type}:${dim}`
+  const cached = pinIconCache.get(key)
+  if (cached) return cached
+
+  const color = STORE_COLORS[type] ?? '#6b7280'
+  const opacity = dim ? 0.35 : 0.9
+
+  const icon = L.divIcon({
     className: '',
     iconSize: [32, 44],
     iconAnchor: [16, 44],
     html: `
       <svg width="32" height="44" viewBox="0 0 32 44" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M16 0C7.163 0 0 7.163 0 16c0 12 16 28 16 28s16-16 16-28C32 7.163 24.837 0 16 0z"
-              fill="${color}" fill-opacity="0.9" stroke="white" stroke-width="2"/>
-        <circle cx="16" cy="14" r="7" fill="white" fill-opacity="0.9"/>
+              fill="${color}" fill-opacity="${opacity}" stroke="white" stroke-width="2"/>
+        <circle cx="16" cy="14" r="7" fill="white" fill-opacity="${opacity}"/>
       </svg>
     `,
   })
+  pinIconCache.set(key, icon)
+  return icon
 }
 
 type MapRequest =
@@ -130,6 +142,18 @@ function fuzzyMatchTowns(towns: string[], query: string): string[] {
       const distB = levenshtein(q, nb)
       return distA - distB
     })
+}
+
+function getSerbiaMinutes(): number {
+  const now = new Date()
+  const serbiaOffset = 120
+  const serbiaTime = new Date(now.getTime() + (now.getTimezoneOffset() + serbiaOffset) * 60000)
+  return serbiaTime.getHours() * 60 + serbiaTime.getMinutes()
+}
+
+function isStoreDimmed(store: Store, nowMinutes: number): boolean {
+  const closed = nowMinutes < store.today_opening_minute || nowMinutes >= store.today_closing_minute
+  return closed || store.today_products_count === 0
 }
 
 function App() {
@@ -244,6 +268,7 @@ function App() {
   const filtered = selectedTown === 'Sve'
     ? stores
     : stores.filter((s) => s.town === selectedTown)
+  const nowMinutes = getSerbiaMinutes()
 
   function handleUseMyLocation() {
     if (!navigator.geolocation) {
@@ -308,7 +333,7 @@ function App() {
           <Marker
             key={store.id}
             position={[store.latitude, store.longitude]}
-            icon={makePinIcon(store.store_type)}
+            icon={makePinIcon(store.store_type, isStoreDimmed(store, nowMinutes))}
           />
         ))}
       </MapContainer>

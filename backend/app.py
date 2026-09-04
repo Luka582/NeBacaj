@@ -125,7 +125,38 @@ async def get_stores(
     if latitude is not None and longitude is not None:
         stores.sort(key=lambda s: haversine_km(latitude, longitude, s.latitude, s.longitude))
 
-    return [StoreMinimalResponse.model_validate(s) for s in stores]
+    now = datetime.now(SERBIA_TZ)
+    today = now.weekday()
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    counts_result = await db.execute(
+        select(Product.store_id, func.count(Product.id))
+        .where(Product.is_active.is_(True), Product.creation_date >= start_of_day)
+        .group_by(Product.store_id)
+    )
+    count_map = dict(counts_result.all())
+
+    open_col = DAY_OPEN_COLUMNS[today]
+    close_col = DAY_CLOSE_COLUMNS[today]
+
+    response = []
+    for s in stores:
+        response.append(
+            StoreMinimalResponse(
+                id=s.id,
+                town=s.town,
+                street=s.street,
+                street_number=s.street_number,
+                latitude=s.latitude,
+                longitude=s.longitude,
+                name=s.name,
+                store_type=s.store_type,
+                today_products_count=int(count_map.get(s.id, 0)),
+                today_opening_minute=int(getattr(s, open_col.key)),
+                today_closing_minute=int(getattr(s, close_col.key)),
+            )
+        )
+    return response
 
 
 @app.get("/town/{latitude}/{longitude}", response_model=str)

@@ -42,6 +42,9 @@ class StoreMinimalResponse(BaseModel):
     longitude : float
     name : str
     store_type : StoreType
+    today_products_count: int = Field(default=0, ge=0)
+    today_opening_minute: int
+    today_closing_minute: int
 
     model_config = {"from_attributes": True}
 
