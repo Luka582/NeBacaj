@@ -458,7 +458,7 @@ function App() {
                   <li>
                     <button
                       type="button"
-                      onClick={() => selectTown('Sve')}
+                      onPointerDown={() => selectTown('Sve')}
                       className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
                     >
                       Svi gradovi
@@ -475,7 +475,7 @@ function App() {
                           <li key={t}>
                             <button
                               type="button"
-                              onClick={() => selectTown(t)}
+                              onPointerDown={() => selectTown(t)}
                               className="w-full px-3 py-2 text-left text-sm font-medium text-blue-600 hover:bg-blue-50"
                             >
                               {t}
@@ -493,7 +493,7 @@ function App() {
                         <li key={t}>
                           <button
                             type="button"
-                            onClick={() => selectTown(t)}
+                            onPointerDown={() => selectTown(t)}
                             className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
                           >
                             {t}
