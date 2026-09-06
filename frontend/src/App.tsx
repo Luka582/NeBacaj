@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import StoreDetail from './StoreDetail'
 
 const CARTO_KEY = 'cb1_2szz_1_c12a73f13692e186652d59d9'
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
@@ -179,6 +180,7 @@ function App() {
   const [warningLeaving, setWarningLeaving] = useState(false)
   const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
+  const [detailStoreId, setDetailStoreId] = useState<string | null>(null)
   const markerRefs = useRef<Map<string, L.Marker>>(new Map())
   const [recentTowns, setRecentTowns] = useState<string[]>(() => {
     try {
@@ -414,6 +416,16 @@ function App() {
                         {formatMinutes(store.today_opening_minute)} – {formatMinutes(store.today_closing_minute)}
                       </span>
                     </div>
+                    <button
+                      type="button"
+                      className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white active:bg-blue-700"
+                      onPointerDown={() => {
+                        setDetailStoreId(store.id)
+                        setSelectedStoreId(null)
+                      }}
+                    >
+                      Detalji o radnji
+                    </button>
                   </div>
                 </Popup>
               )}
@@ -579,6 +591,7 @@ function App() {
           <circle cx="12" cy="10" r="2.5" />
         </svg>
       </button>
+      {detailStoreId && <StoreDetail storeId={detailStoreId} onClose={() => setDetailStoreId(null)} />}
     </div>
   )
 }
