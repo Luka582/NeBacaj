@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { formatMinutes, formatPrice, getSerbiaWeekday, getSerbiaMinutes, relativeTimeAgo } from './format'
+import ProductDetail from './ProductDetail'
 
 interface StoreDetailData {
   id: string
@@ -75,55 +77,12 @@ const DAY_ROWS: { label: string; open: MinutesKey; close: MinutesKey }[] = [
   { label: 'Nedelja', open: 'opening_minute_sun', close: 'closing_minute_sun' },
 ]
 
-function formatMinutes(minutes: number): string {
-  const h = Math.floor(minutes / 60).toString().padStart(2, '0')
-  const m = (minutes % 60).toString().padStart(2, '0')
-  return `${h}:${m}`
-}
-
-function formatPrice(value: number): string {
-  return `${value.toLocaleString('sr-RS')} RSD`
-}
-
-function getSerbiaWeekday(): number {
-  const now = new Date()
-  const serbiaOffset = 120
-  const serbiaTime = new Date(now.getTime() + (now.getTimezoneOffset() + serbiaOffset) * 60000)
-  return serbiaTime.getDay()
-}
-
-function getSerbiaMinutes(): number {
-  const now = new Date()
-  const serbiaOffset = 120
-  const serbiaTime = new Date(now.getTime() + (now.getTimezoneOffset() + serbiaOffset) * 60000)
-  return serbiaTime.getHours() * 60 + serbiaTime.getMinutes()
-}
-
-const SERBIA_OFFSET_MIN = 120
-
-function relativeTimeAgo(iso: string): string {
-  const hasOffset = /[+-]\d\d:\d\d$/.test(iso)
-  let postedMs: number
-  if (hasOffset) {
-    postedMs = new Date(iso).getTime()
-  } else {
-    const m = iso.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/)
-    if (!m) return ''
-    const [, y, mo, d, h, mi, s = '0'] = m
-    const asUtcMs = Date.UTC(+y, +mo - 1, +d, +h, +mi, +s)
-    postedMs = asUtcMs - SERBIA_OFFSET_MIN * 60000
-  }
-  const diffMin = Math.floor((Date.now() - postedMs) / 60000)
-  if (diffMin < 1) return 'Upravo'
-  if (diffMin < 60) return `pre ${diffMin} min`
-  return `pre ${Math.floor(diffMin / 60)} h`
-}
-
 function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => void }) {
   const [store, setStore] = useState<StoreDetailData | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [productDetailId, setProductDetailId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -335,9 +294,13 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
               ) : (
                 <ul className="mt-3 space-y-2">
                   {products.map((p) => (
-                    <li key={p.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => setProductDetailId(p.id)}
+                        className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm active:bg-slate-50"
+                      >
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-slate-900">{p.name}</p>
                           <p className="mt-0.5 text-xs text-slate-400">{relativeTimeAgo(p.creation_date)}</p>
                           {p.amount !== null && p.amount !== undefined && (
@@ -350,7 +313,18 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                             <p className="text-xs text-slate-400 line-through">{formatPrice(p.old_price)}</p>
                           )}
                         </div>
-                      </div>
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4 shrink-0 text-slate-300"
+                        >
+                          <path d="m9 18 6-6-6-6" />
+                        </svg>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -359,6 +333,13 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
           </>
         )}
       </div>
+      {productDetailId && store && (
+        <ProductDetail
+          productId={productDetailId}
+          storeName={store.name}
+          onBack={() => setProductDetailId(null)}
+        />
+      )}
     </div>
   )
 }
