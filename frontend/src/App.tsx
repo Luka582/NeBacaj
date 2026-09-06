@@ -321,6 +321,7 @@ function App() {
           .catch(() => {})
       },
       () => showLocationWarning('Lokacija nije omogućena'),
+      { timeout: 8000, maximumAge: 60000, enableHighAccuracy: false },
     )
   }
 
