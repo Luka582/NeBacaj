@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -152,8 +152,18 @@ function getSerbiaMinutes(): number {
 }
 
 function isStoreDimmed(store: Store, nowMinutes: number): boolean {
-  const closed = nowMinutes < store.today_opening_minute || nowMinutes >= store.today_closing_minute
+  const closed = isStoreClosed(store, nowMinutes)
   return closed || store.today_products_count === 0
+}
+
+function isStoreClosed(store: Store, nowMinutes: number): boolean {
+  return nowMinutes < store.today_opening_minute || nowMinutes >= store.today_closing_minute
+}
+
+function formatMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60).toString().padStart(2, '0')
+  const m = (minutes % 60).toString().padStart(2, '0')
+  return `${h}:${m}`
 }
 
 function App() {
@@ -168,6 +178,8 @@ function App() {
   const [locationWarning, setLocationWarning] = useState<string | null>(null)
   const [warningLeaving, setWarningLeaving] = useState(false)
   const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
+  const markerRefs = useRef<Map<string, L.Marker>>(new Map())
   const [recentTowns, setRecentTowns] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('recentTowns') || '[]')
@@ -188,6 +200,18 @@ function App() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!selectedStoreId) return
+    const marker = markerRefs.current.get(selectedStoreId)
+    if (marker) {
+      const t = window.setTimeout(() => {
+        if (marker.isPopupOpen()) return
+        marker.openPopup()
+      }, 0)
+      return () => window.clearTimeout(t)
+    }
+  }, [selectedStoreId])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -342,13 +366,59 @@ function App() {
             <Marker position={userLocation} icon={userLocationIcon} zIndexOffset={1000} />
           </>
         )}
-        {filtered.map((store) => (
-          <Marker
-            key={store.id}
-            position={[store.latitude, store.longitude]}
-            icon={makePinIcon(store.store_type, isStoreDimmed(store, nowMinutes))}
-          />
-        ))}
+        {filtered.map((store) => {
+          const dim = isStoreDimmed(store, nowMinutes)
+          const closed = isStoreClosed(store, nowMinutes)
+          const selected = store.id === selectedStoreId
+          return (
+            <Marker
+              key={store.id}
+              position={[store.latitude, store.longitude]}
+              icon={makePinIcon(store.store_type, dim)}
+              zIndexOffset={selected ? 500 : 0}
+              ref={(marker) => {
+                if (marker) markerRefs.current.set(store.id, marker)
+                else markerRefs.current.delete(store.id)
+              }}
+              eventHandlers={{ click: () => setSelectedStoreId(store.id) }}
+            >
+              {selected && (
+                <Popup
+                  closeButton
+                  autoPan
+                  offset={[0, -24]}
+                  eventHandlers={{ popupclose: () => setSelectedStoreId(null) }}
+                  className="store-popup"
+                >
+                  <div className="store-popup-content">
+                    {dim && (
+                      <div className="store-popup-badges">
+                        {closed && <span className="store-popup-badge store-popup-badge-red">Zatvoreno</span>}
+                        {store.today_products_count === 0 && (
+                          <span className="store-popup-badge store-popup-badge-amber">Nema proizvoda</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="store-popup-name">{store.name}</div>
+                    <div className="store-popup-address">
+                      {store.street} {store.street_number}
+                    </div>
+                    <div className="store-popup-row">
+                      <span>Proizvoda danas</span>
+                      <span className="store-popup-count">{store.today_products_count}</span>
+                    </div>
+                    <div className="store-popup-row">
+                      <span>Radno vreme</span>
+                      <span>
+                        {formatMinutes(store.today_opening_minute)} – {formatMinutes(store.today_closing_minute)}
+                      </span>
+                    </div>
+                  </div>
+                </Popup>
+              )}
+            </Marker>
+          )
+        })}
       </MapContainer>
 
       <div className="pointer-events-auto absolute top-4 left-1/2 z-[1000] flex w-full -translate-x-1/2 flex-col items-center gap-2 sm:w-auto">
