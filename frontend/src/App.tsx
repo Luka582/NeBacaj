@@ -387,7 +387,7 @@ function App() {
             >
               {selected && (
                 <Popup
-                  closeButton
+                  closeButton={false}
                   autoPan
                   offset={[0, -24]}
                   eventHandlers={{ popupclose: () => setSelectedStoreId(null) }}
