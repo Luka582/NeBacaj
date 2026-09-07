@@ -86,3 +86,20 @@ class ProductMinimalResponse(BaseModel):
         if self.old_price < self.new_price:
             raise ValueError("old_price must be greater than or equal to new_price")
         return self
+
+
+class ProductSearchResult(BaseModel):
+    product_id: str
+    product_name: str
+    amount: int | None = Field(default=None, ge=1)
+    old_price: float = Field(ge=0)
+    new_price: float = Field(ge=0)
+    store_id: str
+    store_name: str
+    town: str
+    street: str
+    street_number: str
+    latitude: float
+    longitude: float
+
+    model_config = {"from_attributes": True}
