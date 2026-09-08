@@ -109,7 +109,7 @@ function ProductDetail({
                   Nije aktivan
                 </span>
               )}
-              <p className="text-3xl font-extrabold text-slate-900">{formatPrice(product.new_price)}</p>
+              <p className="text-3xl font-extrabold text-red-600">{formatPrice(product.new_price)}</p>
               {product.old_price > product.new_price && (
                 <p className="mt-1 text-base text-slate-400 line-through">{formatPrice(product.old_price)}</p>
               )}

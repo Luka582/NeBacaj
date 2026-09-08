@@ -16,6 +16,7 @@ from .schemas import (
     StoreMinimalResponse,
     ProductResponse,
     ProductMinimalResponse,
+    ProductSearchResult,
 )
 
 
@@ -180,6 +181,39 @@ async def get_town_from_coordinates(
         counts[store.town] = counts.get(store.town, 0) + 1
 
     return max(counts, key=lambda t: counts[t])
+
+
+@app.get("/products/search", response_model=list[ProductSearchResult])
+async def search_products(
+    q: str = Query(..., min_length=1, description="Search query for product name"),
+    db: AsyncSession = Depends(get_session),
+) -> list[ProductSearchResult]:
+    """GET /products/search?q=... — search products by name across all stores, returning up to 20 results."""
+    stmt = (
+        select(Product, Store)
+        .join(Store, Product.store_id == Store.id)
+        .where(Product.is_active.is_(True), Product.name.ilike(f"%{q}%"))
+        .limit(20)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+    return [
+        ProductSearchResult(
+            product_id=product.id,
+            product_name=product.name,
+            amount=product.amount,
+            old_price=product.old_price,
+            new_price=product.new_price,
+            store_id=store.id,
+            store_name=store.name,
+            town=store.town,
+            street=store.street,
+            street_number=store.street_number,
+            latitude=store.latitude,
+            longitude=store.longitude,
+        )
+        for product, store in rows
+    ]
 
 
 @app.get("/products/{store_id}", response_model=list[ProductMinimalResponse])

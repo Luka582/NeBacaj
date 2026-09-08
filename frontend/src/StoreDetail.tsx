@@ -308,7 +308,7 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                           )}
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="text-sm font-bold text-slate-900">{formatPrice(p.new_price)}</p>
+                          <p className="text-sm font-bold text-red-600">{formatPrice(p.new_price)}</p>
                           {p.old_price > p.new_price && (
                             <p className="text-xs text-slate-400 line-through">{formatPrice(p.old_price)}</p>
                           )}
