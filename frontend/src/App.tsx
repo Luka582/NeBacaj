@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, type PointerEvent as ReactPointerEvent } from 'react'
 import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -94,7 +94,13 @@ type MapRequest =
   | { seq: number; type: 'town'; bounds: [[number, number], [number, number]] }
   | { seq: number; type: 'store'; lat: number; lng: number }
 
-function MapController({ request }: { request: MapRequest | null }) {
+function MapController({
+  request,
+  interactionLocked,
+}: {
+  request: MapRequest | null
+  interactionLocked: boolean
+}) {
   const map = useMap()
   const lastSeq = useRef<number>(-1)
   useEffect(() => {
@@ -106,11 +112,37 @@ function MapController({ request }: { request: MapRequest | null }) {
         [request.lat + request.radiusKm / 111, request.lng + request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
       ])
     } else if (request.type === 'store') {
-      map.setView([request.lat, request.lng], 16)
+      map.setView([request.lat, request.lng], Math.max(map.getZoom(), 13))
     } else {
       map.fitBounds(request.bounds)
     }
   }, [request, map])
+
+  useEffect(() => {
+    const container = map.getContainer()
+    if (interactionLocked) {
+      map.dragging?.disable()
+      map.touchZoom?.disable()
+      map.doubleClickZoom?.disable()
+      map.scrollWheelZoom?.disable()
+      map.boxZoom?.disable()
+      container.style.touchAction = 'none'
+      const preventScroll = (e: Event) => e.preventDefault()
+      container.addEventListener('touchmove', preventScroll, { passive: false })
+      container.addEventListener('wheel', preventScroll, { passive: false })
+      return () => {
+        container.removeEventListener('touchmove', preventScroll)
+        container.removeEventListener('wheel', preventScroll)
+      }
+    } else {
+      map.dragging?.enable()
+      map.touchZoom?.enable()
+      map.doubleClickZoom?.enable()
+      map.scrollWheelZoom?.enable()
+      map.boxZoom?.enable()
+      container.style.touchAction = ''
+    }
+  }, [map, interactionLocked])
   return null
 }
 
@@ -192,12 +224,36 @@ function formatMinutes(minutes: number): string {
   return `${h}:${m}`
 }
 
+type TapSession = { sx: number; sy: number; fn: (() => void) | null }
+const tapSessions: Record<number, TapSession> = {}
+
+function tapHandlers(fn: () => void) {
+  return {
+    onPointerDown: (e: ReactPointerEvent) => {
+      tapSessions[e.pointerId] = { sx: e.clientX, sy: e.clientY, fn }
+    },
+    onPointerUp: (e: ReactPointerEvent) => {
+      const s = tapSessions[e.pointerId]
+      delete tapSessions[e.pointerId]
+      if (!s) return
+      const dx = e.clientX - s.sx
+      const dy = e.clientY - s.sy
+      if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) s.fn?.()
+    },
+    onPointerCancel: (e: ReactPointerEvent) => {
+      delete tapSessions[e.pointerId]
+    },
+  }
+}
+
 function App() {
   const [stores, setStores] = useState<Store[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selectedTown, setSelectedTown] = useState<string>('Sve')
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [inputFocused, setInputFocused] = useState(false)
+  const focusedSearch = useRef<'town' | 'product' | null>(null)
   const [radius, setRadius] = useState(50)
   const [locationRadius, setLocationRadius] = useState(0.5)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
@@ -219,6 +275,8 @@ function App() {
   const productDropdownRef = useRef<HTMLDivElement>(null)
   const requestSeq = useRef(0)
   const [productSearchQuery, setProductSearchQuery] = useState('')
+  const productSearchQueryRef = useRef('')
+  productSearchQueryRef.current = productSearchQuery
   const [productResults, setProductResults] = useState<ProductSearchResult[]>([])
   const [productSearchOpen, setProductSearchOpen] = useState(false)
   const [productSearchLoading, setProductSearchLoading] = useState(false)
@@ -259,6 +317,39 @@ function App() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    let lastHeight = vv.height
+    const onResize = () => {
+      if (vv.height - lastHeight > 60) {
+        const el = document.activeElement
+        if (el instanceof HTMLElement && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) el.blur()
+      }
+      lastHeight = vv.height
+    }
+    vv.addEventListener('resize', onResize)
+    return () => vv.removeEventListener('resize', onResize)
+  }, [])
+
+  useEffect(() => {
+    if (inputFocused) {
+      const de = document.documentElement
+      const prevBody = document.body.style.overflow
+      const prevDoc = de.style.overflow
+      document.body.style.overflow = 'hidden'
+      document.body.style.overscrollBehavior = 'none'
+      de.style.overflow = 'hidden'
+      de.style.overscrollBehavior = 'none'
+      return () => {
+        document.body.style.overflow = prevBody
+        document.body.style.overscrollBehavior = ''
+        de.style.overflow = prevDoc
+        de.style.overscrollBehavior = ''
+      }
+    }
+  }, [inputFocused])
 
   useEffect(() => {
     fetch('/api/stores?is_active=true&only_opened=false')
@@ -310,7 +401,16 @@ function App() {
     setMapRequest({ seq: requestSeq.current, type: 'town', bounds })
   }
 
+  function clearProductSearch() {
+    setProductSearchQuery('')
+    setProductSearchOpen(false)
+    setProductResults([])
+    setProductSearchError(false)
+    setProductSearchLoading(false)
+  }
+
   function selectTown(town: string) {
+    clearProductSearch()
     setSelectedTown(town)
     setSearchQuery(town === 'Sve' ? '' : town)
     setIsDropdownOpen(false)
@@ -390,11 +490,16 @@ function App() {
           return res.json()
         })
         .then((data: ProductSearchResult[]) => {
+          if (productSearchQueryRef.current !== q) return
           setProductResults(data)
           setProductSearchOpen(true)
         })
-        .catch(() => setProductSearchError(true))
-        .finally(() => setProductSearchLoading(false))
+        .catch(() => {
+          if (productSearchQueryRef.current === q) setProductSearchError(true)
+        })
+        .finally(() => {
+          if (productSearchQueryRef.current === q) setProductSearchLoading(false)
+        })
     }, 300)
     return () => window.clearTimeout(timer)
   }, [productSearchQuery])
@@ -421,7 +526,7 @@ function App() {
           subdomains="abcd"
           maxZoom={20}
         />
-        <MapController request={mapRequest} />
+        <MapController request={mapRequest} interactionLocked={inputFocused} />
         {userLocation && (
           <>
             <Circle
@@ -503,8 +608,8 @@ function App() {
         })}
       </MapContainer>
 
-      <div className="pointer-events-auto absolute top-4 left-1/2 z-[1000] flex w-full -translate-x-1/2 flex-col items-center gap-2 sm:w-auto">
-        <div className="w-[92%] max-w-sm rounded-2xl bg-white/95 p-3 shadow-lg backdrop-blur sm:max-w-none sm:w-96">
+      <div className="pointer-events-auto absolute top-4 left-4 right-16 z-[1000] sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2">
+        <div className="w-full max-w-sm rounded-2xl bg-white/95 p-3 shadow-lg backdrop-blur sm:w-96">
           <div className="mb-3">
             <div ref={dropdownRef} className="relative">
               <svg
@@ -525,22 +630,35 @@ function App() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => {
+                  clearProductSearch()
                   setSearchQuery(e.target.value)
                   setIsDropdownOpen(true)
                 }}
                 onFocus={() => {
+                  focusedSearch.current = 'town'
+                  clearProductSearch()
                   setSearchQuery('')
                   setIsDropdownOpen(true)
+                  setInputFocused(true)
+                }}
+                onBlur={() => {
+                  focusedSearch.current = null
+                  setIsDropdownOpen(false)
+                  setInputFocused(false)
+                }}
+                onPointerDown={(e) => {
+                  if (focusedSearch.current === 'product') e.preventDefault()
                 }}
                 placeholder="Unesi naziv grada..."
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-10 pl-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
               />
               {isDropdownOpen && (
-                <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto overscroll-contain rounded-lg border border-slate-200 bg-white shadow-lg">
                   <li>
                     <button
                       type="button"
-                      onPointerDown={() => selectTown('Sve')}
+                      {...tapHandlers(() => selectTown('Sve'))}
+                      onClick={() => selectTown('Sve')}
                       className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
                     >
                       Svi gradovi
@@ -557,7 +675,8 @@ function App() {
                           <li key={t}>
                             <button
                               type="button"
-                              onPointerDown={() => selectTown(t)}
+                              {...tapHandlers(() => selectTown(t))}
+                              onClick={() => selectTown(t)}
                               className="w-full px-3 py-2 text-left text-sm font-medium text-blue-600 hover:bg-blue-50"
                             >
                               {t}
@@ -575,7 +694,8 @@ function App() {
                         <li key={t}>
                           <button
                             type="button"
-                            onPointerDown={() => selectTown(t)}
+                            {...tapHandlers(() => selectTown(t))}
+                            onClick={() => selectTown(t)}
                             className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
                           >
                             {t}
@@ -604,18 +724,30 @@ function App() {
             <input
               type="text"
               value={productSearchQuery}
-              onChange={(e) => {
-                setProductSearchQuery(e.target.value)
-                setProductSearchOpen(e.target.value.trim().length > 0)
-              }}
-              onFocus={() => {
-                if (productSearchQuery.trim().length > 0) setProductSearchOpen(true)
-              }}
-              placeholder="Pretraži proizvode..."
+onChange={(e) => {
+                  setIsDropdownOpen(false)
+                  setProductSearchQuery(e.target.value)
+                  setProductSearchOpen(e.target.value.trim().length > 0)
+                }}
+onFocus={() => {
+                  focusedSearch.current = 'product'
+                  setIsDropdownOpen(false)
+                  clearProductSearch()
+                  setInputFocused(true)
+                }}
+                onBlur={() => {
+                  focusedSearch.current = null
+                  clearProductSearch()
+                  setInputFocused(false)
+                }}
+                onPointerDown={(e) => {
+                  if (focusedSearch.current === 'town') e.preventDefault()
+                }}
+                placeholder="Pretraži proizvode..."
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-10 pl-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             />
             {productSearchOpen && (
-              <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+              <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-auto overscroll-contain rounded-lg border border-slate-200 bg-white shadow-lg">
                 {productSearchLoading && (
                   <li className="px-3 py-2 text-sm text-slate-400">Pretraga...</li>
                 )}
@@ -631,7 +763,8 @@ function App() {
                     <li key={r.product_id}>
                       <button
                         type="button"
-                        onPointerDown={() => openProductFromSearch(r)}
+                        {...tapHandlers(() => openProductFromSearch(r))}
+                        onClick={() => openProductFromSearch(r)}
                         className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-blue-50"
                       >
                         <div className="min-w-0 flex-1">
@@ -669,34 +802,13 @@ function App() {
             </div>
           )}
         </div>
-        <div className="relative flex w-[92%] max-w-sm justify-end sm:hidden">
-          <button
-            type="button"
-            onClick={handleUseMyLocation}
-            title="Koristi moju lokaciju"
-            className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-blue-600 shadow-lg backdrop-blur transition hover:bg-blue-50"
+        {locationWarning && (
+          <p
+            className={`pointer-events-none absolute top-16 right-16 z-[1002] whitespace-nowrap rounded-lg bg-red-500 px-3 py-1 text-sm font-medium text-white shadow-lg transition-opacity duration-500 sm:hidden ${warningLeaving ? 'opacity-0' : 'opacity-100'}`}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
-            >
-              <path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z" />
-              <circle cx="12" cy="10" r="2.5" />
-            </svg>
-          </button>
-          {locationWarning && (
-            <p
-              className={`pointer-events-none absolute top-0 left-1/2 z-[1001] -translate-x-1/2 whitespace-nowrap rounded-lg bg-red-500 px-3 py-1 text-sm font-medium text-white shadow-lg transition-opacity duration-500 ${warningLeaving ? 'opacity-0' : 'opacity-100'}`}
-            >
-              {locationWarning}
-            </p>
-          )}
-        </div>
+            {locationWarning}
+          </p>
+        )}
         {locationWarning && (
           <p
             className={`pointer-events-none absolute top-1/2 left-1/2 z-[1001] hidden -translate-x-1/2 translate-y-full whitespace-nowrap rounded-lg bg-red-500 px-3 py-1 text-sm font-medium text-white shadow-lg transition-opacity duration-500 sm:block ${warningLeaving ? 'opacity-0' : 'opacity-100'}`}
@@ -710,7 +822,7 @@ function App() {
         type="button"
         onClick={handleUseMyLocation}
         title="Koristi moju lokaciju"
-        className="hidden h-12 w-12 items-center justify-center rounded-2xl bg-white/95 text-blue-600 shadow-lg backdrop-blur transition hover:bg-blue-50 sm:absolute sm:top-4 sm:right-4 sm:z-[1000] sm:flex"
+        className="absolute top-4 right-4 z-[1001] flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-blue-600 shadow-lg backdrop-blur transition hover:bg-blue-50 active:scale-95"
       >
         <svg
           viewBox="0 0 24 24"
@@ -719,7 +831,7 @@ function App() {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="h-11 w-11"
+          className="h-5 w-5"
         >
           <path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z" />
           <circle cx="12" cy="10" r="2.5" />
