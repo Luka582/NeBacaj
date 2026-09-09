@@ -56,6 +56,20 @@ body,
   color: #b45309;
 }
 
+.store-popup-badge-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.store-popup-type-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+}
+
 .store-popup-name {
   font-size: 16px;
   font-weight: 700;

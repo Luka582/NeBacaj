@@ -551,14 +551,23 @@ function App() {
                   className="store-popup"
                 >
                   <div className="store-popup-content">
-                    {dim && (
-                      <div className="store-popup-badges">
-                        {closed && <span className="store-popup-badge store-popup-badge-red">Zatvoreno</span>}
-                        {store.today_products_count === 0 && (
-                          <span className="store-popup-badge store-popup-badge-amber">Nema proizvoda</span>
-                        )}
-                      </div>
-                    )}
+                    <div className="store-popup-badges">
+                      <span className="store-popup-badge store-popup-badge-type">
+                        <span
+                          className="store-popup-type-dot"
+                          style={{ backgroundColor: STORE_COLORS[store.store_type] ?? '#6b7280' }}
+                        />
+                        {STORE_LABELS[store.store_type] ?? 'Ostalo'}
+                      </span>
+                      {dim && (
+                        <>
+                          {closed && <span className="store-popup-badge store-popup-badge-red">Zatvoreno</span>}
+                          {store.today_products_count === 0 && (
+                            <span className="store-popup-badge store-popup-badge-amber">Nema proizvoda</span>
+                          )}
+                        </>
+                      )}
+                    </div>
                     <div className="store-popup-name">{store.name}</div>
                     <div className="store-popup-address">
                       {store.street} {store.street_number}
@@ -591,16 +600,14 @@ function App() {
         })}
       </MapContainer>
 
-      <div className="pointer-events-auto absolute top-4 left-4 right-16 z-[1000] sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2">
-        <div className="w-full max-w-sm rounded-2xl bg-white/95 p-3 shadow-lg backdrop-blur sm:w-96">
-          <div className="mb-3">
-            <div ref={dropdownRef} className="relative">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
+<div className="pointer-events-auto absolute top-4 left-4 right-16 z-[1000] sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2">
+        <div ref={dropdownRef} className="relative w-full max-w-sm sm:w-96">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
                 strokeLinejoin="round"
                 className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-slate-400"
               >
@@ -686,25 +693,9 @@ function App() {
                   )}
                 </ul>
               )}
-            </div>
-          </div>
-
-{error ? (
-            <p className="text-center text-sm text-red-500">{error}</p>
-          ) : (
-            <div className="flex items-center justify-center gap-3">
-              {Object.entries(STORE_LABELS).map(([type, label]) => (
-                <span key={type} className="flex items-center gap-1 text-xs text-slate-500">
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: STORE_COLORS[type] }}
-                  />
-                  {label}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
+
+        {error && <p className="mt-1 text-center text-sm text-red-500">{error}</p>}
         {locationWarning && (
           <p
             className={`pointer-events-none absolute top-16 right-16 z-[1002] whitespace-nowrap rounded-lg bg-red-500 px-3 py-1 text-sm font-medium text-white shadow-lg transition-opacity duration-500 sm:hidden ${warningLeaving ? 'opacity-0' : 'opacity-100'}`}
