@@ -454,11 +454,11 @@ function App() {
   function showLocationWarning(msg: string) {
     setWarningLeaving(false)
     setLocationWarning(msg)
-    window.setTimeout(() => setWarningLeaving(true), 3000)
+    window.setTimeout(() => setWarningLeaving(true), 1500)
     window.setTimeout(() => {
       setLocationWarning(null)
       setWarningLeaving(false)
-    }, 3500)
+    }, 2000)
   }
 
   useEffect(() => {
@@ -660,7 +660,7 @@ function App() {
         {error && <p className="mt-1 text-center text-sm text-red-500">{error}</p>}
         {locationWarning && (
           <p
-            className={`pointer-events-none absolute top-16 right-16 z-[1002] whitespace-nowrap rounded-lg bg-red-500 px-3 py-1 text-sm font-medium text-white shadow-lg transition-opacity duration-500 sm:hidden ${warningLeaving ? 'opacity-0' : 'opacity-100'}`}
+            className={`pointer-events-none fixed top-20 left-1/2 z-[1002] -translate-x-1/2 whitespace-nowrap rounded-lg bg-red-500 px-3 py-1 text-sm font-medium text-white shadow-lg transition-opacity duration-500 sm:hidden ${warningLeaving ? 'opacity-0' : 'opacity-100'}`}
           >
             {locationWarning}
           </p>
