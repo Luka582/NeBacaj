@@ -9,6 +9,17 @@ body,
   margin: 0;
 }
 
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
 .store-popup .leaflet-popup-content-wrapper {
   border-radius: 16px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
