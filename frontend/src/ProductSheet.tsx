@@ -78,7 +78,6 @@ export default function ProductSheet({
   }
 
   const hasQuery = query.trim().length > 0
-  const visibleProducts = expanded ? products : products.slice(0, 3)
 
   return (
     <div
@@ -178,12 +177,12 @@ export default function ProductSheet({
           </>
         ) : error ? (
           <p className="px-3 py-3 text-center text-sm text-red-500">Greška pri učitavanju proizvoda</p>
-        ) : visibleProducts.length === 0 ? (
+        ) : products.length === 0 ? (
           <p className="px-3 py-3 text-center text-sm text-slate-400">
             {hasQuery ? 'Nema rezultata' : 'Nema proizvoda'}
           </p>
         ) : (
-          visibleProducts.map((r) => (
+          products.map((r) => (
             <button
               key={r.product_id}
               type="button"
@@ -206,9 +205,6 @@ export default function ProductSheet({
               </div>
             </button>
           ))
-        )}
-        {!expanded && products.length > 3 && (
-          <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-12 bg-gradient-to-t from-white to-transparent" />
         )}
       </div>
     </div>
