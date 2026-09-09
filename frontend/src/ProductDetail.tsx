@@ -18,10 +18,12 @@ function ProductDetail({
   productId,
   storeName,
   onBack,
+  onViewStore,
 }: {
   productId: string
   storeName: string
   onBack: () => void
+  onViewStore?: (storeId: string) => void
 }) {
   const [product, setProduct] = useState<ProductData | null>(null)
   const [error, setError] = useState(false)
@@ -142,6 +144,27 @@ function ProductDetail({
                 )}
               </ul>
             </section>
+
+            {onViewStore && (
+              <button
+                type="button"
+                onClick={() => onViewStore(product.store_id)}
+                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white active:bg-blue-700"
+              >
+                Pogledaj radnju
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </button>
+            )}
           </>
         )}
       </div>

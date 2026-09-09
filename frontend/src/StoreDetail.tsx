@@ -338,6 +338,7 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
           productId={productDetailId}
           storeName={store.name}
           onBack={() => setProductDetailId(null)}
+          onViewStore={() => setProductDetailId(null)}
         />
       )}
     </div>

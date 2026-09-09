@@ -882,6 +882,10 @@ onFocus={() => {
           productId={searchProductOpen.productId}
           storeName={searchProductOpen.storeName}
           onBack={() => setSearchProductOpen(null)}
+          onViewStore={(storeId) => {
+            setSearchProductOpen(null)
+            setDetailStoreId(storeId)
+          }}
         />
       )}
     </div>
