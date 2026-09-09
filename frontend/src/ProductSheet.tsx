@@ -87,15 +87,15 @@ export default function ProductSheet({
       }`}
       style={{ height: dragHeight !== null ? `${dragHeight}px` : expanded ? '100dvh' : `${PEEK_HEIGHT}px` }}
     >
-      <div className="shrink-0 px-3 pt-1.5 pb-1">
+      <div className="shrink-0 border-b border-slate-100 px-3 pt-2 pb-2">
         <button
           type="button"
           aria-expanded={expanded}
           onPointerDown={beginDrag}
           onClick={() => setExpanded((v) => !v)}
-          className="flex w-full touch-none flex-col items-center gap-1.5 rounded-lg pt-1 pb-1.5 outline-none select-none"
+          className="flex w-full touch-none flex-col items-center gap-2 rounded-xl py-2.5 outline-none select-none active:bg-slate-100"
         >
-          <span className="h-1 w-10 rounded-full bg-slate-300" />
+          <span className="h-1.5 w-12 rounded-full bg-slate-300" />
           {!expanded && (
             <span className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
               Pretraži proizvode
