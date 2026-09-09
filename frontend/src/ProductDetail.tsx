@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { formatPrice, formatShortDate, relativeTimeAgo } from './format'
+import { cropImageUrl, formatPrice, formatShortDate, relativeTimeAgo } from './format'
 
 interface ProductData {
   id: string
@@ -9,6 +9,7 @@ interface ProductData {
   new_price: number
   name: string
   description?: string | null
+  image_url?: string | null
   is_active: boolean
   expiration_date?: string | null
   creation_date: string
@@ -105,6 +106,14 @@ function ProductDetail({
 
         {!loading && !error && product && (
           <>
+            {product.image_url && (
+              <img
+                src={cropImageUrl(product.image_url, 800, 800)}
+                alt={product.name}
+                className="mt-4 aspect-square w-full rounded-2xl object-cover"
+                loading="lazy"
+              />
+            )}
             <section className="mt-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
               {!product.is_active && (
                 <span className="mb-2 inline-block rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">

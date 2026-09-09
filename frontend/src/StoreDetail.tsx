@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { formatMinutes, formatPrice, getSerbiaWeekday, getSerbiaMinutes, relativeTimeAgo } from './format'
+import { cropImageUrl, formatMinutes, formatPrice, getSerbiaWeekday, getSerbiaMinutes, relativeTimeAgo } from './format'
 import ProductDetail from './ProductDetail'
 
 interface StoreDetailData {
@@ -11,6 +11,7 @@ interface StoreDetailData {
   street_number: string
   name: string
   description?: string | null
+  image_url?: string | null
   store_type: string
   opening_minute_mon: number
   closing_minute_mon: number
@@ -180,6 +181,14 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
 
         {!loading && !error && store && (
           <>
+            {store.image_url && (
+              <img
+                src={cropImageUrl(store.image_url, 1200, 675)}
+                alt={store.name}
+                className="mt-4 aspect-video w-full rounded-2xl object-cover"
+                loading="lazy"
+              />
+            )}
             <section className="mt-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <span

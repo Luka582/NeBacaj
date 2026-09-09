@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, select
 
 from .db import Product, Store, StoreType, async_session, engine, init_db
+from .images import product_image_url, store_image_url
 
 DB_FILE = "nebacaj.db"
 SERBIA_TZ = ZoneInfo("Europe/Belgrade")
@@ -136,6 +137,7 @@ def _make_store(town: str, streets: list[str], coords: tuple[float, float], is_a
         longitude=coords[1],
         name=_pick_store_name(store_type),
         description="Opis prodavnice",
+        image_url=store_image_url(),
         is_active=is_active,
         store_type=store_type,
         opening_minute_mon=_opening(),
@@ -166,6 +168,7 @@ def _make_product(store: Store, index: int) -> Product:
         new_price=new_price,
         name=f"{choice(PRODUCT_NAMES)} #{index}",
         description="Opis proizvoda - Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis eu gravida lorem, vitae semper lectus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus pulvinar sem lectus, quis tincidunt libero viverra ac. Mauris condimentum augue vulputate tempus scelerisque. Donec id lobortis nulla, in sodales magna. In vel blandit massa, molestie hendrerit urna." if randint(0, 1) else None,
+        image_url=product_image_url(),
         is_active=store.is_active,
         expiration_date=datetime.now(SERBIA_TZ) + timedelta(days=randint(1, 30), hours=randint(0, 23)) if randint(0, 1) else None,
     )

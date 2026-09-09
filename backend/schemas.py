@@ -14,6 +14,7 @@ class StoreResponse(BaseModel):
     longitude : float
     name : str
     description : str | None
+    image_url : str | None = None
     is_active : bool
     store_type : StoreType
     opening_minute_mon: int
@@ -57,6 +58,7 @@ class ProductResponse(BaseModel):
     new_price: float = Field(ge=0)
     name: str
     description: str | None
+    image_url: str | None = None
     is_active: bool
     expiration_date: datetime | None
     creation_date: datetime

@@ -24,6 +24,10 @@ export function formatPrice(value: number): string {
   return `${value.toLocaleString('sr-RS')} RSD`
 }
 
+export function cropImageUrl(url: string, width: number, height: number): string {
+  return `${url}?tr=w-${width},h-${height},c-maintain_ratio,fo-center`
+}
+
 export function formatShortDate(iso: string): string {
   const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (!match) return iso

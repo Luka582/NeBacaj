@@ -46,6 +46,7 @@ class Store(Base):
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     store_type: Mapped[StoreType] = mapped_column(
         Enum(
@@ -84,6 +85,7 @@ class Product(Base):
     new_price: Mapped[float] = mapped_column(Float, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     expiration_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     creation_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
