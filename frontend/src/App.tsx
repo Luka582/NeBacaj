@@ -733,20 +733,20 @@ function App() {
               />
             </div>
           </div>
-          <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2">
+          <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto overscroll-contain px-2 py-2">
             <li>
               <button
                 type="button"
                 {...tapHandlers(() => selectTown('Sve'))}
                 onClick={() => selectTown('Sve')}
-                className="w-full rounded-lg px-3 py-3 text-left text-sm text-slate-700 hover:bg-blue-50 active:bg-blue-50"
+                className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-blue-50 active:bg-blue-50"
               >
                 Svi gradovi
               </button>
             </li>
             {query.length === 0 && recentTowns.length > 0 && (
               <>
-                <li className="border-t border-slate-100 px-3 pt-3 pb-1 text-xs font-semibold text-slate-400">
+                <li className="border-t border-slate-100 px-4 pt-3 pb-1 text-xs font-semibold text-slate-400">
                   Nedavni
                 </li>
                 {recentTowns
@@ -757,7 +757,7 @@ function App() {
                         type="button"
                         {...tapHandlers(() => selectTown(t))}
                         onClick={() => selectTown(t)}
-                        className="w-full rounded-lg px-3 py-3 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 active:bg-blue-50"
+                        className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 active:bg-blue-50"
                       >
                         {t}
                       </button>
@@ -766,7 +766,7 @@ function App() {
               </>
             )}
             {filteredTowns.length === 0 && query.length > 0 ? (
-              <li className="px-3 py-2 text-sm text-slate-400">Nema rezultata</li>
+              <li className="px-4 py-3 text-sm text-slate-400">Nema rezultata</li>
             ) : (
               filteredTowns
                 .filter((t) => query.length > 0 || !recentTowns.includes(t))
@@ -776,7 +776,7 @@ function App() {
                       type="button"
                       {...tapHandlers(() => selectTown(t))}
                       onClick={() => selectTown(t)}
-                      className="w-full rounded-lg px-3 py-3 text-left text-sm text-slate-700 hover:bg-blue-50 active:bg-blue-50"
+                      className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-blue-50 active:bg-blue-50"
                     >
                       {t}
                     </button>
