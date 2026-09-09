@@ -7,7 +7,7 @@ import ProductDetail from './ProductDetail'
 import ProductSheet, { type ProductSearchResult } from './ProductSheet'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
 
-const CARTO_KEY = 'cb1_2szz_1_c12a73f13692e186652d59d9'
+const CARTO_KEY = __CARTO_API_KEY__
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
 const cartoUrl = `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${CARTO_KEY}`
 

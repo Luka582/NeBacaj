@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
@@ -17,15 +17,21 @@ function configPlugin() {
   }
 }
 
-export default defineConfig({
-  plugins: [react(), configPlugin()],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, path.resolve(process.cwd(), '..'), '')
+  return {
+    plugins: [react(), configPlugin()],
+    define: {
+      __CARTO_API_KEY__: JSON.stringify(env.CARTO_API_KEY || ''),
+    },
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
       },
     },
-  },
+  }
 })
