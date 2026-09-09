@@ -97,9 +97,11 @@ type MapRequest =
 function MapController({
   request,
   interactionLocked,
+  invalidateSignal,
 }: {
   request: MapRequest | null
   interactionLocked: boolean
+  invalidateSignal: number
 }) {
   const map = useMap()
   const lastSeq = useRef<number>(-1)
@@ -117,6 +119,24 @@ function MapController({
       map.fitBounds(request.bounds)
     }
   }, [request, map])
+
+  const lastInvalidate = useRef(0)
+  useEffect(() => {
+    if (invalidateSignal === lastInvalidate.current) return
+    lastInvalidate.current = invalidateSignal
+    map.invalidateSize({ animate: false })
+  }, [map, invalidateSignal])
+
+  useEffect(() => {
+    const onViewportResize = () => map.invalidateSize({ animate: false })
+    window.addEventListener('resize', onViewportResize)
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', onViewportResize)
+    return () => {
+      window.removeEventListener('resize', onViewportResize)
+      vv?.removeEventListener('resize', onViewportResize)
+    }
+  }, [map])
 
   useEffect(() => {
     const container = map.getContainer()
@@ -282,6 +302,8 @@ function App() {
   const [productSearchLoading, setProductSearchLoading] = useState(false)
   const [productSearchError, setProductSearchError] = useState(false)
   const [searchProductOpen, setSearchProductOpen] = useState<SearchProductOpen | null>(null)
+  const [invalidateSignal, setInvalidateSignal] = useState(0)
+  const prevDetailOpen = useRef(false)
 
   useEffect(() => {
     fetch('/config.json')
@@ -334,7 +356,16 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (inputFocused) {
+    const open = detailStoreId != null || searchProductOpen != null
+    if (prevDetailOpen.current && !open) {
+      window.scrollTo(0, 0)
+      setInvalidateSignal((c) => c + 1)
+    }
+    prevDetailOpen.current = open
+  }, [detailStoreId, searchProductOpen])
+
+  useEffect(() => {
+    if (inputFocused || detailStoreId != null || searchProductOpen != null) {
       const de = document.documentElement
       const prevBody = document.body.style.overflow
       const prevDoc = de.style.overflow
@@ -349,7 +380,7 @@ function App() {
         de.style.overscrollBehavior = ''
       }
     }
-  }, [inputFocused])
+  }, [inputFocused, detailStoreId, searchProductOpen])
 
   useEffect(() => {
     fetch('/api/stores?is_active=true&only_opened=false')
@@ -526,7 +557,7 @@ function App() {
           subdomains="abcd"
           maxZoom={20}
         />
-        <MapController request={mapRequest} interactionLocked={inputFocused} />
+        <MapController request={mapRequest} interactionLocked={inputFocused} invalidateSignal={invalidateSignal} />
         {userLocation && (
           <>
             <Circle
