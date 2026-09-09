@@ -235,7 +235,8 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [selectedTown, setSelectedTown] = useState<string>('Sve')
   const [searchQuery, setSearchQuery] = useState('')
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [townSearchOpen, setTownSearchOpen] = useState(false)
+  const [visualHeight, setVisualHeight] = useState<number | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const focusedSearch = useRef<'town' | 'product' | null>(null)
   const [radius, setRadius] = useState(50)
@@ -255,7 +256,7 @@ function App() {
     }
   })
   const inputRef = useRef<HTMLInputElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const townOverlayInputRef = useRef<HTMLInputElement>(null)
   const requestSeq = useRef(0)
   const [productSearchQuery, setProductSearchQuery] = useState('')
   const productSearchQueryRef = useRef('')
@@ -290,28 +291,30 @@ function App() {
   }, [selectedStoreId])
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsDropdownOpen(false)
-      }
+    if (townSearchOpen) {
+      townOverlayInputRef.current?.focus()
+    } else {
+      focusedSearch.current = null
+      setInputFocused(false)
+      inputRef.current?.blur()
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [townSearchOpen])
 
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
     let lastHeight = vv.height
-    const onResize = () => {
+    const update = () => {
+      setVisualHeight(vv.height)
       if (vv.height - lastHeight > 60) {
         const el = document.activeElement
         if (el instanceof HTMLElement && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) el.blur()
       }
       lastHeight = vv.height
     }
-    vv.addEventListener('resize', onResize)
-    return () => vv.removeEventListener('resize', onResize)
+    update()
+    vv.addEventListener('resize', update)
+    return () => vv.removeEventListener('resize', update)
   }, [])
 
   useEffect(() => {
@@ -394,7 +397,7 @@ function App() {
   function selectTown(town: string) {
     setSelectedTown(town)
     setSearchQuery(town === 'Sve' ? '' : town)
-    setIsDropdownOpen(false)
+    setTownSearchOpen(false)
     fitToTown(town)
     if (town !== 'Sve') {
       setRecentTowns((prev) => {
@@ -433,7 +436,7 @@ function App() {
             if (town) {
               setSelectedTown(town)
               setSearchQuery(town)
-              setIsDropdownOpen(false)
+              setTownSearchOpen(false)
             }
           })
           .catch(() => {})
@@ -601,98 +604,41 @@ function App() {
       </MapContainer>
 
 <div className="pointer-events-auto absolute top-4 left-4 right-16 z-[1000] sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2">
-        <div ref={dropdownRef} className="relative w-full max-w-sm sm:w-96">
+        <div className="relative w-full max-w-sm sm:w-96">
           <svg
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
-                strokeLinejoin="round"
-                className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-slate-400"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-              <input
-                ref={inputRef}
-                id="town-search"
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value)
-                  setIsDropdownOpen(true)
-                }}
-                onFocus={() => {
-                  focusedSearch.current = 'town'
-                  setSearchQuery('')
-                  setIsDropdownOpen(true)
-                  setInputFocused(true)
-                }}
-                onBlur={() => {
-                  focusedSearch.current = null
-                  setIsDropdownOpen(false)
-                  setInputFocused(false)
-                }}
-                onPointerDown={(e) => {
-                  if (focusedSearch.current === 'product') e.preventDefault()
-                }}
-                placeholder="Unesi naziv grada..."
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-10 pl-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-              />
-              {isDropdownOpen && (
-                <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto overscroll-contain rounded-lg border border-slate-200 bg-white shadow-lg">
-                  <li>
-                    <button
-                      type="button"
-                      {...tapHandlers(() => selectTown('Sve'))}
-                      onClick={() => selectTown('Sve')}
-                      className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
-                    >
-                      Svi gradovi
-                    </button>
-                  </li>
-                  {query.length === 0 && recentTowns.length > 0 && (
-                    <>
-                      <li className="border-t border-slate-100 px-3 pt-2 pb-1 text-xs font-semibold text-slate-400">
-                        Nedavni
-                      </li>
-                      {recentTowns
-                        .filter((t) => towns.includes(t))
-                        .map((t) => (
-                          <li key={t}>
-                            <button
-                              type="button"
-                              {...tapHandlers(() => selectTown(t))}
-                              onClick={() => selectTown(t)}
-                              className="w-full px-3 py-2 text-left text-sm font-medium text-blue-600 hover:bg-blue-50"
-                            >
-                              {t}
-                            </button>
-                          </li>
-                        ))}
-                    </>
-                  )}
-                  {filteredTowns.length === 0 && query.length > 0 ? (
-                    <li className="px-3 py-2 text-sm text-slate-400">Nema rezultata</li>
-                  ) : (
-                    filteredTowns
-                      .filter((t) => query.length > 0 || !recentTowns.includes(t))
-                      .map((t) => (
-                        <li key={t}>
-                          <button
-                            type="button"
-                            {...tapHandlers(() => selectTown(t))}
-                            onClick={() => selectTown(t)}
-                            className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
-                          >
-                            {t}
-                          </button>
-                        </li>
-                      ))
-                  )}
-                </ul>
-              )}
+            strokeLinejoin="round"
+            className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-slate-400"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            ref={inputRef}
+            id="town-search"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => {
+              focusedSearch.current = 'town'
+              setSearchQuery('')
+              setTownSearchOpen(true)
+              setInputFocused(true)
+            }}
+            onBlur={() => {
+              focusedSearch.current = null
+              setInputFocused(false)
+            }}
+            onPointerDown={(e) => {
+              if (focusedSearch.current === 'product') e.preventDefault()
+            }}
+            placeholder="Unesi naziv grada..."
+            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-10 pl-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          />
         </div>
 
         {error && <p className="mt-1 text-center text-sm text-red-500">{error}</p>}
@@ -731,17 +677,128 @@ function App() {
           <circle cx="12" cy="10" r="2.5" />
         </svg>
       </button>
-      <ProductSheet
-        products={productResults}
-        loading={productSearchLoading}
-        error={productSearchError}
-        query={productSearchQuery}
-        onQueryChange={setProductSearchQuery}
-        onSelect={openProductFromSearch}
-        focusedSearch={focusedSearch}
-        onSearchFocused={setInputFocused}
-        onTownDropdown={setIsDropdownOpen}
-      />
+      {townSearchOpen && (
+        <div
+          className="fixed inset-x-0 top-0 z-[1600] flex h-screen flex-col bg-white"
+          style={{ height: visualHeight != null ? `${visualHeight}px` : '100dvh' }}
+        >
+          <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-2 py-3">
+            <button
+              type="button"
+              onClick={() => setTownSearchOpen(false)}
+              aria-label="Nazad"
+              className="pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+              >
+                <path d="M19 12H5" />
+                <path d="m12 19-7-7 7-7" />
+              </svg>
+            </button>
+            <div className="relative flex-1">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-slate-400"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                ref={townOverlayInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => {
+                  focusedSearch.current = 'town'
+                  setInputFocused(true)
+                }}
+                onBlur={() => {
+                  focusedSearch.current = null
+                  setInputFocused(false)
+                }}
+                placeholder="Unesi naziv grada..."
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-3 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+          </div>
+          <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2">
+            <li>
+              <button
+                type="button"
+                {...tapHandlers(() => selectTown('Sve'))}
+                onClick={() => selectTown('Sve')}
+                className="w-full rounded-lg px-3 py-3 text-left text-sm text-slate-700 hover:bg-blue-50 active:bg-blue-50"
+              >
+                Svi gradovi
+              </button>
+            </li>
+            {query.length === 0 && recentTowns.length > 0 && (
+              <>
+                <li className="border-t border-slate-100 px-3 pt-3 pb-1 text-xs font-semibold text-slate-400">
+                  Nedavni
+                </li>
+                {recentTowns
+                  .filter((t) => towns.includes(t))
+                  .map((t) => (
+                    <li key={t}>
+                      <button
+                        type="button"
+                        {...tapHandlers(() => selectTown(t))}
+                        onClick={() => selectTown(t)}
+                        className="w-full rounded-lg px-3 py-3 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 active:bg-blue-50"
+                      >
+                        {t}
+                      </button>
+                    </li>
+                  ))}
+              </>
+            )}
+            {filteredTowns.length === 0 && query.length > 0 ? (
+              <li className="px-3 py-2 text-sm text-slate-400">Nema rezultata</li>
+            ) : (
+              filteredTowns
+                .filter((t) => query.length > 0 || !recentTowns.includes(t))
+                .map((t) => (
+                  <li key={t}>
+                    <button
+                      type="button"
+                      {...tapHandlers(() => selectTown(t))}
+                      onClick={() => selectTown(t)}
+                      className="w-full rounded-lg px-3 py-3 text-left text-sm text-slate-700 hover:bg-blue-50 active:bg-blue-50"
+                    >
+                      {t}
+                    </button>
+                  </li>
+                ))
+            )}
+          </ul>
+        </div>
+      )}
+      {!townSearchOpen && (
+        <ProductSheet
+          products={productResults}
+          loading={productSearchLoading}
+          error={productSearchError}
+          query={productSearchQuery}
+          onQueryChange={setProductSearchQuery}
+          onSelect={openProductFromSearch}
+          focusedSearch={focusedSearch}
+          onSearchFocused={setInputFocused}
+          onTownDropdown={setTownSearchOpen}
+        />
+      )}
       {detailStoreId && <StoreDetail storeId={detailStoreId} onClose={() => setDetailStoreId(null)} />}
       {searchProductOpen && (
         <ProductDetail
