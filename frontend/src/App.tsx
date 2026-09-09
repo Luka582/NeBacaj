@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css'
 import StoreDetail from './StoreDetail'
 import ProductDetail from './ProductDetail'
 import ProductSheet, { type ProductSearchResult } from './ProductSheet'
-import { tapHandlers } from './tapHandlers'
+import { tapHandlers, dismissKeyboard } from './tapHandlers'
 
 const CARTO_KEY = 'cb1_2szz_1_c12a73f13692e186652d59d9'
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
@@ -701,7 +701,10 @@ function App() {
           <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-2 py-3">
             <button
               type="button"
-              onClick={() => setTownSearchOpen(false)}
+              onClick={() => {
+                setSearchQuery('')
+                setTownSearchOpen(false)
+              }}
               aria-label="Nazad"
               className="pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
             >
@@ -749,7 +752,11 @@ function App() {
               />
             </div>
           </div>
-          <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto overscroll-contain px-2 py-2">
+          <ul
+            onWheel={dismissKeyboard}
+            onTouchMove={dismissKeyboard}
+            className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto overscroll-contain px-2 py-2"
+          >
             <li>
               <button
                 type="button"

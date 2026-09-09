@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { formatPrice } from './format'
-import { tapHandlers } from './tapHandlers'
+import { tapHandlers, dismissKeyboard } from './tapHandlers'
 
 export interface ProductSearchResult {
   product_id: string
@@ -159,7 +159,11 @@ export default function ProductSheet({
         </div>
       )}
 
-      <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
+      <div
+        onWheel={dismissKeyboard}
+        onTouchMove={dismissKeyboard}
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3"
+      >
         {loading ? (
           <>
             {Array.from({ length: 3 }, (_, i) => (

@@ -21,3 +21,8 @@ export function tapHandlers(fn: () => void) {
     },
   }
 }
+
+export function dismissKeyboard() {
+  const el = document.activeElement
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.blur()
+}
