@@ -185,23 +185,26 @@ async def get_town_from_coordinates(
 
 @app.get("/products/search", response_model=list[ProductSearchResult])
 async def search_products(
-    q: str = Query(..., min_length=1, description="Search query for product name"),
+    q: str | None = Query(default=None, min_length=1, description="Search query for product name; omit to list all products"),
     town: str | None = Query(default=None, description="Restrict search to a single town"),
     lat: float | None = Query(default=None, ge=-90, le=90, description="Reference latitude for distance sorting"),
     lng: float | None = Query(default=None, ge=-180, le=180, description="Reference longitude for distance sorting"),
+    limit: int = Query(default=100, ge=1, le=500, description="Maximum number of results"),
     db: AsyncSession = Depends(get_session),
 ) -> list[ProductSearchResult]:
-    """GET /products/search?q=...
+    """GET /products/search?q=&town=&lat=&lng=&limit=
 
-    Searches active products by name (optionally restricted to one town). When both lat and lng
-    are provided, results are sorted by distance to that point (closest first); otherwise they are
-    sorted by newest creation date first. Returns up to 20 results.
+    Lists active products, optionally filtered by name (q) and/or store town. When both lat and lng
+    are provided, results are sorted by distance to that point (closest first, newest breaking ties);
+    otherwise the newest products come first. Returns up to ``limit`` results (default 100).
     """
     stmt = (
         select(Product, Store)
         .join(Store, Product.store_id == Store.id)
-        .where(Product.is_active.is_(True), Product.name.ilike(f"%{q}%"))
+        .where(Product.is_active.is_(True))
     )
+    if q:
+        stmt = stmt.where(Product.name.ilike(f"%{q}%"))
     if town:
         stmt = stmt.where(Store.town == town)
 
@@ -226,11 +229,12 @@ async def search_products(
 
     if lat is not None and lng is not None:
         dists = {product.id: haversine_km(lat, lng, store.latitude, store.longitude) for product, store in rows}
+        rows.sort(key=lambda r: r[0].creation_date, reverse=True)
         rows.sort(key=lambda r: dists[r[0].id])
-        return [to_result(product, store, round(dists[product.id], 2)) for product, store in rows[:20]]
+        return [to_result(product, store, round(dists[product.id], 2)) for product, store in rows[:limit]]
 
     rows.sort(key=lambda r: r[0].creation_date, reverse=True)
-    return [to_result(product, store, None) for product, store in rows[:20]]
+    return [to_result(product, store, None) for product, store in rows[:limit]]
 
 
 @app.get("/products/{store_id}", response_model=list[ProductMinimalResponse])

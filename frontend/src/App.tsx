@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import StoreDetail from './StoreDetail'
 import ProductDetail from './ProductDetail'
-import { formatPrice } from './format'
+import ProductSheet, { type ProductSearchResult } from './ProductSheet'
+import { tapHandlers } from './tapHandlers'
 
 const CARTO_KEY = 'cb1_2szz_1_c12a73f13692e186652d59d9'
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
@@ -27,22 +28,6 @@ interface Store {
   today_products_count: number
   today_opening_minute: number
   today_closing_minute: number
-}
-
-interface ProductSearchResult {
-  product_id: string
-  product_name: string
-  amount?: number | null
-  old_price: number
-  new_price: number
-  store_id: string
-  store_name: string
-  town: string
-  street: string
-  street_number: string
-  latitude: number
-  longitude: number
-  distance_km?: number | null
 }
 
 interface SearchProductOpen {
@@ -245,28 +230,6 @@ function formatMinutes(minutes: number): string {
   return `${h}:${m}`
 }
 
-type TapSession = { sx: number; sy: number; fn: (() => void) | null }
-const tapSessions: Record<number, TapSession> = {}
-
-function tapHandlers(fn: () => void) {
-  return {
-    onPointerDown: (e: ReactPointerEvent) => {
-      tapSessions[e.pointerId] = { sx: e.clientX, sy: e.clientY, fn }
-    },
-    onPointerUp: (e: ReactPointerEvent) => {
-      const s = tapSessions[e.pointerId]
-      delete tapSessions[e.pointerId]
-      if (!s) return
-      const dx = e.clientX - s.sx
-      const dy = e.clientY - s.sy
-      if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) s.fn?.()
-    },
-    onPointerCancel: (e: ReactPointerEvent) => {
-      delete tapSessions[e.pointerId]
-    },
-  }
-}
-
 function App() {
   const [stores, setStores] = useState<Store[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -293,13 +256,11 @@ function App() {
   })
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const productDropdownRef = useRef<HTMLDivElement>(null)
   const requestSeq = useRef(0)
   const [productSearchQuery, setProductSearchQuery] = useState('')
   const productSearchQueryRef = useRef('')
   productSearchQueryRef.current = productSearchQuery
   const [productResults, setProductResults] = useState<ProductSearchResult[]>([])
-  const [productSearchOpen, setProductSearchOpen] = useState(false)
   const [productSearchLoading, setProductSearchLoading] = useState(false)
   const [productSearchError, setProductSearchError] = useState(false)
   const [searchProductOpen, setSearchProductOpen] = useState<SearchProductOpen | null>(null)
@@ -332,9 +293,6 @@ function App() {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsDropdownOpen(false)
-      }
-      if (productDropdownRef.current && !productDropdownRef.current.contains(e.target as Node)) {
-        setProductSearchOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -433,16 +391,7 @@ function App() {
     setMapRequest({ seq: requestSeq.current, type: 'town', bounds })
   }
 
-  function clearProductSearch() {
-    setProductSearchQuery('')
-    setProductSearchOpen(false)
-    setProductResults([])
-    setProductSearchError(false)
-    setProductSearchLoading(false)
-  }
-
   function selectTown(town: string) {
-    clearProductSearch()
     setSelectedTown(town)
     setSearchQuery(town === 'Sve' ? '' : town)
     setIsDropdownOpen(false)
@@ -506,44 +455,40 @@ function App() {
 
   useEffect(() => {
     const q = productSearchQuery.trim()
-    if (!q) {
-      setProductResults([])
-      setProductSearchOpen(false)
-      setProductSearchError(false)
-      setProductSearchLoading(false)
-      return
-    }
-    setProductSearchLoading(true)
-    setProductSearchError(false)
-    const params = new URLSearchParams({ q })
-    if (selectedTown !== 'Sve') params.set('town', selectedTown)
-    if (userLocation) {
-      params.set('lat', String(userLocation[0]))
-      params.set('lng', String(userLocation[1]))
-    }
-    const timer = window.setTimeout(() => {
-      fetch(`/api/products/search?${params.toString()}`)
-        .then((res) => {
-          if (!res.ok) throw new Error()
-          return res.json()
-        })
-        .then((data: ProductSearchResult[]) => {
-          if (productSearchQueryRef.current !== q) return
-          setProductResults(data)
-          setProductSearchOpen(true)
-        })
-        .catch(() => {
-          if (productSearchQueryRef.current === q) setProductSearchError(true)
-        })
-        .finally(() => {
-          if (productSearchQueryRef.current === q) setProductSearchLoading(false)
-        })
-    }, 300)
+    const timer = window.setTimeout(
+      () => {
+        const params = new URLSearchParams()
+        if (q) params.set('q', q)
+        if (selectedTown !== 'Sve') params.set('town', selectedTown)
+        if (userLocation) {
+          params.set('lat', String(userLocation[0]))
+          params.set('lng', String(userLocation[1]))
+        }
+        params.set('limit', '100')
+        setProductSearchLoading(true)
+        setProductSearchError(false)
+        fetch(`/api/products/search?${params.toString()}`)
+          .then((res) => {
+            if (!res.ok) throw new Error()
+            return res.json()
+          })
+          .then((data: ProductSearchResult[]) => {
+            if (productSearchQueryRef.current !== q) return
+            setProductResults(data)
+          })
+          .catch(() => {
+            if (productSearchQueryRef.current === q) setProductSearchError(true)
+          })
+          .finally(() => {
+            if (productSearchQueryRef.current === q) setProductSearchLoading(false)
+          })
+      },
+      q ? 300 : 0,
+    )
     return () => window.clearTimeout(timer)
   }, [productSearchQuery, selectedTown, userLocation])
 
   function openProductFromSearch(result: ProductSearchResult) {
-    setProductSearchOpen(false)
     requestSeq.current += 1
     setMapRequest({ seq: requestSeq.current, type: 'store', lat: result.latitude, lng: result.longitude })
     setSearchProductOpen({ productId: result.product_id, storeName: result.store_name })
@@ -668,13 +613,11 @@ function App() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => {
-                  clearProductSearch()
                   setSearchQuery(e.target.value)
                   setIsDropdownOpen(true)
                 }}
                 onFocus={() => {
                   focusedSearch.current = 'town'
-                  clearProductSearch()
                   setSearchQuery('')
                   setIsDropdownOpen(true)
                   setInputFocused(true)
@@ -746,86 +689,7 @@ function App() {
             </div>
           </div>
 
-          <div ref={productDropdownRef} className="mb-3 relative">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-slate-400"
-            >
-              <path d="m21 21-4.35-4.35" />
-              <path d="M3 3h4l2.6 12.2a2 2 0 0 0 2 1.8h7.6a2 2 0 0 0 2-1.6L23 7H7" />
-            </svg>
-            <input
-              type="text"
-              value={productSearchQuery}
-onChange={(e) => {
-                  setIsDropdownOpen(false)
-                  setProductSearchQuery(e.target.value)
-                  setProductSearchOpen(e.target.value.trim().length > 0)
-                }}
-onFocus={() => {
-                  focusedSearch.current = 'product'
-                  setIsDropdownOpen(false)
-                  clearProductSearch()
-                  setInputFocused(true)
-                }}
-                onBlur={() => {
-                  focusedSearch.current = null
-                  clearProductSearch()
-                  setInputFocused(false)
-                }}
-                onPointerDown={(e) => {
-                  if (focusedSearch.current === 'town') e.preventDefault()
-                }}
-                placeholder="Pretraži proizvode..."
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-10 pl-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-            />
-            {productSearchOpen && (
-              <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-auto overscroll-contain rounded-lg border border-slate-200 bg-white shadow-lg">
-                {productSearchLoading && (
-                  <li className="px-3 py-2 text-sm text-slate-400">Pretraga...</li>
-                )}
-                {!productSearchLoading && productSearchError && (
-                  <li className="px-3 py-2 text-sm text-red-500">Greška pri pretrazi</li>
-                )}
-                {!productSearchLoading && !productSearchError && productResults.length === 0 && (
-                  <li className="px-3 py-2 text-sm text-slate-400">Nema rezultata</li>
-                )}
-                {!productSearchLoading &&
-                  !productSearchError &&
-                  productResults.map((r) => (
-                    <li key={r.product_id}>
-                      <button
-                        type="button"
-                        {...tapHandlers(() => openProductFromSearch(r))}
-                        onClick={() => openProductFromSearch(r)}
-                        className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-blue-50"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-slate-900">{r.product_name}</p>
-                          <p className="truncate text-xs text-slate-500">
-                            {r.store_name} · {r.street} {r.street_number}, {r.town}
-                            {r.distance_km != null && <span> · {r.distance_km} km</span>}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-sm font-bold text-red-600">{formatPrice(r.new_price)}</p>
-                          {r.old_price > r.new_price && (
-                            <p className="text-xs text-slate-400 line-through">{formatPrice(r.old_price)}</p>
-                          )}
-                        </div>
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </div>
-
-          {error ? (
+{error ? (
             <p className="text-center text-sm text-red-500">{error}</p>
           ) : (
             <div className="flex items-center justify-center gap-3">
@@ -876,6 +740,17 @@ onFocus={() => {
           <circle cx="12" cy="10" r="2.5" />
         </svg>
       </button>
+      <ProductSheet
+        products={productResults}
+        loading={productSearchLoading}
+        error={productSearchError}
+        query={productSearchQuery}
+        onQueryChange={setProductSearchQuery}
+        onSelect={openProductFromSearch}
+        focusedSearch={focusedSearch}
+        onSearchFocused={setInputFocused}
+        onTownDropdown={setIsDropdownOpen}
+      />
       {detailStoreId && <StoreDetail storeId={detailStoreId} onClose={() => setDetailStoreId(null)} />}
       {searchProductOpen && (
         <ProductDetail
