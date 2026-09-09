@@ -131,7 +131,6 @@ export default function ProductSheet({
               onBlur={() => {
                 focusedSearch.current = null
                 onSearchFocused(false)
-                setExpanded(false)
               }}
               onPointerDown={(e) => {
                 if (focusedSearch.current === 'town') e.preventDefault()
