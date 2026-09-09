@@ -79,6 +79,7 @@ type MapRequest =
   | { seq: number; type: 'location'; lat: number; lng: number; radiusKm: number }
   | { seq: number; type: 'town'; bounds: [[number, number], [number, number]] }
   | { seq: number; type: 'store'; lat: number; lng: number }
+  | { seq: number; type: 'focus'; lat: number; lng: number }
 
 function MapController({
   request,
@@ -99,6 +100,10 @@ function MapController({
         [request.lat - request.radiusKm / 111, request.lng - request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
         [request.lat + request.radiusKm / 111, request.lng + request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
       ])
+    } else if (request.type === 'focus') {
+      const pt = map.project([request.lat, request.lng], map.getZoom())
+      const center = map.unproject([pt.x, pt.y - map.getSize().y * 0.07], map.getZoom())
+      map.panTo(center, { animate: true })
     } else if (request.type === 'store') {
       map.setView([request.lat, request.lng], Math.max(map.getZoom(), 13))
     } else {
@@ -543,12 +548,23 @@ function App() {
                 if (marker) markerRefs.current.set(store.id, marker)
                 else markerRefs.current.delete(store.id)
               }}
-              eventHandlers={{ click: () => setSelectedStoreId(store.id) }}
+              eventHandlers={{
+                click: () => {
+                  setSelectedStoreId(store.id)
+                  requestSeq.current += 1
+                  setMapRequest({
+                    seq: requestSeq.current,
+                    type: 'focus',
+                    lat: store.latitude,
+                    lng: store.longitude,
+                  })
+                },
+              }}
             >
               {selected && (
                 <Popup
                   closeButton={false}
-                  autoPan
+                  autoPan={false}
                   offset={[0, -24]}
                   eventHandlers={{ popupclose: () => setSelectedStoreId(null) }}
                   className="store-popup"
