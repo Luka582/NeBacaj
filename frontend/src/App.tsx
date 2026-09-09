@@ -42,6 +42,7 @@ interface ProductSearchResult {
   street_number: string
   latitude: number
   longitude: number
+  distance_km?: number | null
 }
 
 interface SearchProductOpen {
@@ -514,8 +515,14 @@ function App() {
     }
     setProductSearchLoading(true)
     setProductSearchError(false)
+    const params = new URLSearchParams({ q })
+    if (selectedTown !== 'Sve') params.set('town', selectedTown)
+    if (userLocation) {
+      params.set('lat', String(userLocation[0]))
+      params.set('lng', String(userLocation[1]))
+    }
     const timer = window.setTimeout(() => {
-      fetch(`/api/products/search?q=${encodeURIComponent(q)}`)
+      fetch(`/api/products/search?${params.toString()}`)
         .then((res) => {
           if (!res.ok) throw new Error()
           return res.json()
@@ -533,7 +540,7 @@ function App() {
         })
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [productSearchQuery])
+  }, [productSearchQuery, selectedTown, userLocation])
 
   function openProductFromSearch(result: ProductSearchResult) {
     setProductSearchOpen(false)
@@ -802,6 +809,7 @@ onFocus={() => {
                           <p className="truncate text-sm font-semibold text-slate-900">{r.product_name}</p>
                           <p className="truncate text-xs text-slate-500">
                             {r.store_name} · {r.street} {r.street_number}, {r.town}
+                            {r.distance_km != null && <span> · {r.distance_km} km</span>}
                           </p>
                         </div>
                         <div className="shrink-0 text-right">

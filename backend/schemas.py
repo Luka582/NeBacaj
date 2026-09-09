@@ -101,5 +101,6 @@ class ProductSearchResult(BaseModel):
     street_number: str
     latitude: float
     longitude: float
+    distance_km: float | None = None
 
     model_config = {"from_attributes": True}

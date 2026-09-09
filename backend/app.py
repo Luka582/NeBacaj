@@ -186,19 +186,29 @@ async def get_town_from_coordinates(
 @app.get("/products/search", response_model=list[ProductSearchResult])
 async def search_products(
     q: str = Query(..., min_length=1, description="Search query for product name"),
+    town: str | None = Query(default=None, description="Restrict search to a single town"),
+    lat: float | None = Query(default=None, ge=-90, le=90, description="Reference latitude for distance sorting"),
+    lng: float | None = Query(default=None, ge=-180, le=180, description="Reference longitude for distance sorting"),
     db: AsyncSession = Depends(get_session),
 ) -> list[ProductSearchResult]:
-    """GET /products/search?q=... — search products by name across all stores, returning up to 20 results."""
+    """GET /products/search?q=...
+
+    Searches active products by name (optionally restricted to one town). When both lat and lng
+    are provided, results are sorted by distance to that point (closest first); otherwise they are
+    sorted by newest creation date first. Returns up to 20 results.
+    """
     stmt = (
         select(Product, Store)
         .join(Store, Product.store_id == Store.id)
         .where(Product.is_active.is_(True), Product.name.ilike(f"%{q}%"))
-        .limit(20)
     )
-    result = await db.execute(stmt)
-    rows = result.all()
-    return [
-        ProductSearchResult(
+    if town:
+        stmt = stmt.where(Store.town == town)
+
+    rows = (await db.execute(stmt)).all()
+
+    def to_result(product: Product, store: Store, distance_km: float | None) -> ProductSearchResult:
+        return ProductSearchResult(
             product_id=product.id,
             product_name=product.name,
             amount=product.amount,
@@ -211,9 +221,16 @@ async def search_products(
             street_number=store.street_number,
             latitude=store.latitude,
             longitude=store.longitude,
+            distance_km=distance_km,
         )
-        for product, store in rows
-    ]
+
+    if lat is not None and lng is not None:
+        dists = {product.id: haversine_km(lat, lng, store.latitude, store.longitude) for product, store in rows}
+        rows.sort(key=lambda r: dists[r[0].id])
+        return [to_result(product, store, round(dists[product.id], 2)) for product, store in rows[:20]]
+
+    rows.sort(key=lambda r: r[0].creation_date, reverse=True)
+    return [to_result(product, store, None) for product, store in rows[:20]]
 
 
 @app.get("/products/{store_id}", response_model=list[ProductMinimalResponse])
