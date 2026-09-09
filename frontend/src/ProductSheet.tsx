@@ -18,7 +18,7 @@ export interface ProductSearchResult {
   distance_km?: number | null
 }
 
-const PEEK_HEIGHT = 236
+const PEEK_HEIGHT = 176
 const EXPAND_SNAP_RATIO = 0.45
 
 interface ProductSheetProps {
@@ -92,19 +92,16 @@ export default function ProductSheet({
           aria-expanded={expanded}
           onPointerDown={beginDrag}
           onClick={() => setExpanded((v) => !v)}
-          className="flex w-full touch-none flex-col items-center gap-2 rounded-xl py-2.5 outline-none select-none active:bg-slate-100"
+          className={`flex w-full touch-none flex-col items-center rounded-xl outline-none select-none active:bg-slate-100 ${
+            expanded ? 'py-4' : 'py-1'
+          }`}
         >
           <span className="h-1.5 w-12 rounded-full bg-slate-300" />
-          {!expanded && (
-            <span className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-              Pretraži proizvode
-            </span>
-          )}
         </button>
       </div>
 
       {expanded && (
-        <div className="shrink-0 px-3 pb-2">
+        <div className="shrink-0 px-3 pt-2 pb-2">
           <div className="relative">
             <svg
               viewBox="0 0 24 24"
