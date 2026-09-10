@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from math import asin, cos, radians, sin, sqrt
 from zoneinfo import ZoneInfo
 
@@ -48,15 +48,59 @@ DAY_OPEN_COLUMNS = {
     6: Store.opening_minute_sun,
 }
 
-DAY_CLOSE_COLUMNS = {
-    0: Store.closing_minute_mon,
-    1: Store.closing_minute_tue,
-    2: Store.closing_minute_wed,
-    3: Store.closing_minute_thu,
-    4: Store.closing_minute_fri,
-    5: Store.closing_minute_sat,
-    6: Store.closing_minute_sun,
+DAY_DURATION_COLUMNS = {
+    0: Store.working_minutes_mon,
+    1: Store.working_minutes_tue,
+    2: Store.working_minutes_wed,
+    3: Store.working_minutes_thu,
+    4: Store.working_minutes_fri,
+    5: Store.working_minutes_sat,
+    6: Store.working_minutes_sun,
 }
+
+
+def _schedule(store: Store, weekday: int) -> tuple[int, int]:
+    """Return (opening_minute, closing_minute) of the shift that starts on ``weekday``."""
+    opening = int(getattr(store, DAY_OPEN_COLUMNS[weekday].key))
+    duration = int(getattr(store, DAY_DURATION_COLUMNS[weekday].key))
+    return opening, opening + duration
+
+
+def _active_shift(store: Store, today: int, current_minutes: int) -> tuple[int, int] | None:
+    """Return the (opening_minute, closing_minute) of the shift that is currently active, or None."""
+    today_open, today_close = _schedule(store, today)
+    if today_open <= current_minutes < today_close:
+        return (today_open, today_close)
+
+    yesterday = (today - 1) % 7
+    y_open, y_close = _schedule(store, yesterday)
+    if y_close > 1440 and current_minutes < y_close - 1440:
+        return (y_open, y_close)
+
+    return None
+
+
+def _shift_window(store: Store, reference: datetime) -> tuple[datetime, datetime] | None:
+    """Return the (start, end) datetimes of the store's currently active shift, or None if closed."""
+    today = reference.weekday()
+    current_minutes = reference.hour * 60 + reference.minute
+    yesterday = (today - 1) % 7
+    today_date = reference.date()
+
+    today_open, today_close = _schedule(store, today)
+    if today_open <= current_minutes < today_close:
+        start_date = today_date
+        opening, closing = today_open, today_close
+    else:
+        y_open, y_close = _schedule(store, yesterday)
+        if y_close > 1440 and current_minutes < y_close - 1440:
+            start_date = today_date - timedelta(days=1)
+            opening, closing = y_open, y_close
+        else:
+            return None
+
+    shift_start = datetime.combine(start_date, time()) + timedelta(minutes=opening)
+    return shift_start, shift_start + timedelta(minutes=closing - opening)
 
 
 def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -99,6 +143,11 @@ async def get_stores(
 ) -> list[StoreMinimalResponse]:
     """GET /stores — list all stores, optionally filtered by town, active status, and whether they are open now.
 
+    A store counts as open if it is within its own shift today OR within the overnight extension of
+    yesterday's shift (a store that closes after midnight). ``today_opening_minute`` /
+    ``today_closing_minute`` reflect the currently active shift, and ``today_products_count`` counts
+    products posted during that shift (0 for closed stores).
+
     If latitude and longitude are both provided, results are sorted ascending by haversine distance
     from the reference point (closest first). Providing only one of them is invalid.
     """
@@ -112,36 +161,38 @@ async def get_stores(
     if town is not None:
         stmt = stmt.where(Store.town == town)
 
-    if only_opened:
-        now = datetime.now(SERBIA_TZ)
-        today = now.weekday()
-        current_minutes = now.hour * 60 + now.minute
-        open_col = DAY_OPEN_COLUMNS[today]
-        close_col = DAY_CLOSE_COLUMNS[today]
-        stmt = stmt.where(open_col <= current_minutes, current_minutes < close_col)
-
     result = await db.execute(stmt)
     stores = result.scalars().all()
+
+    now = datetime.now(SERBIA_TZ)
+    today = now.weekday()
+    current_minutes = now.hour * 60 + now.minute
+
+    if only_opened:
+        stores = [s for s in stores if _active_shift(s, today, current_minutes) is not None]
 
     if latitude is not None and longitude is not None:
         stores.sort(key=lambda s: haversine_km(latitude, longitude, s.latitude, s.longitude))
 
-    now = datetime.now(SERBIA_TZ)
-    today = now.weekday()
-    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    counts_result = await db.execute(
-        select(Product.store_id, func.count(Product.id))
-        .where(Product.is_active.is_(True), Product.creation_date >= start_of_day)
-        .group_by(Product.store_id)
+    broad_start = now - timedelta(hours=48)
+    recent_result = await db.execute(
+        select(Product.store_id, Product.creation_date)
+        .where(Product.is_active.is_(True), Product.creation_date >= broad_start)
     )
-    count_map = dict(counts_result.all())
+    recent_rows = recent_result.all()
 
-    open_col = DAY_OPEN_COLUMNS[today]
-    close_col = DAY_CLOSE_COLUMNS[today]
+    count_map: dict[str, int] = {}
+    for s in stores:
+        window = _shift_window(s, now)
+        if window is None:
+            count_map[s.id] = 0
+            continue
+        start, end = window
+        count_map[s.id] = sum(1 for store_id, created in recent_rows if store_id == s.id and start <= created < end)
 
     response = []
     for s in stores:
+        opening, closing = _active_shift(s, today, current_minutes) or _schedule(s, today)
         response.append(
             StoreMinimalResponse(
                 id=s.id,
@@ -152,9 +203,9 @@ async def get_stores(
                 longitude=s.longitude,
                 name=s.name,
                 store_type=s.store_type,
-                today_products_count=int(count_map.get(s.id, 0)),
-                today_opening_minute=int(getattr(s, open_col.key)),
-                today_closing_minute=int(getattr(s, close_col.key)),
+                today_products_count=count_map.get(s.id, 0),
+                today_opening_minute=opening,
+                today_closing_minute=closing,
             )
         )
     return response
@@ -241,16 +292,24 @@ async def search_products(
 async def get_products(
     store_id: str,
     is_active: bool = Query(default=True, description="Filter by active status"),
-    today_only: bool = Query(default=True, description="Return only products posted today (Serbian time)"),
+    today_only: bool = Query(default=True, description="Return only products posted during the store's current working shift"),
     db: AsyncSession = Depends(get_session),
 ) -> list[ProductMinimalResponse]:
-    """GET /products/{id} — list products belonging to the given store, filtered by active status and posting day."""
+    """GET /products/{id} — list products belonging to the given store.
+
+    When ``today_only`` is set, products are scoped to the store's currently active working shift
+    (a shift may extend past midnight). A closed store has no active shift, so it returns no products.
+    """
     stmt = select(Product).where(Product.store_id == store_id, Product.is_active == is_active)
 
     if today_only:
-        now = datetime.now(SERBIA_TZ)
-        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        stmt = stmt.where(Product.creation_date >= start_of_day)
+        store_result = await db.execute(select(Store).where(Store.id == store_id))
+        store = store_result.scalar_one_or_none()
+        window = _shift_window(store, datetime.now(SERBIA_TZ)) if store is not None else None
+        if window is None:
+            return []
+        start, end = window
+        stmt = stmt.where(Product.creation_date >= start, Product.creation_date < end)
 
     result = await db.execute(stmt)
     products = result.scalars().all()

@@ -125,8 +125,8 @@ def _make_store(town: str, streets: list[str], coords: tuple[float, float], is_a
     store_type = choice(list(StoreType))
     def _opening() -> int:
         return randint(0, 600)
-    def _closing() -> int:
-        return randint(1140, 1440)
+    def _duration() -> int:
+        return randint(420, 1140)
     return Store(
         link=f"https://primer.rs/{(coords[0] + coords[1]):.4f}",
         phone_number=randint(200000000, 999999999),
@@ -141,19 +141,19 @@ def _make_store(town: str, streets: list[str], coords: tuple[float, float], is_a
         is_active=is_active,
         store_type=store_type,
         opening_minute_mon=_opening(),
-        closing_minute_mon=_closing(),
+        working_minutes_mon=_duration(),
         opening_minute_tue=_opening(),
-        closing_minute_tue=_closing(),
+        working_minutes_tue=_duration(),
         opening_minute_wed=_opening(),
-        closing_minute_wed=_closing(),
+        working_minutes_wed=_duration(),
         opening_minute_thu=_opening(),
-        closing_minute_thu=_closing(),
+        working_minutes_thu=_duration(),
         opening_minute_fri=_opening(),
-        closing_minute_fri=_closing(),
+        working_minutes_fri=_duration(),
         opening_minute_sat=_opening(),
-        closing_minute_sat=_closing(),
+        working_minutes_sat=_duration(),
         opening_minute_sun=_opening(),
-        closing_minute_sun=_closing(),
+        working_minutes_sun=_duration(),
     )
 
 

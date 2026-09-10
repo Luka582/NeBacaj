@@ -15,7 +15,7 @@ export function getSerbiaMinutes(): number {
 }
 
 export function formatMinutes(minutes: number): string {
-  const h = Math.floor(minutes / 60).toString().padStart(2, '0')
+  const h = Math.floor((minutes % 1440) / 60).toString().padStart(2, '0')
   const m = (minutes % 60).toString().padStart(2, '0')
   return `${h}:${m}`
 }
