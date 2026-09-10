@@ -14,19 +14,19 @@ interface StoreDetailData {
   image_url?: string | null
   store_type: string
   opening_minute_mon: number
-  closing_minute_mon: number
+  working_minutes_mon: number
   opening_minute_tue: number
-  closing_minute_tue: number
+  working_minutes_tue: number
   opening_minute_wed: number
-  closing_minute_wed: number
+  working_minutes_wed: number
   opening_minute_thu: number
-  closing_minute_thu: number
+  working_minutes_thu: number
   opening_minute_fri: number
-  closing_minute_fri: number
+  working_minutes_fri: number
   opening_minute_sat: number
-  closing_minute_sat: number
+  working_minutes_sat: number
   opening_minute_sun: number
-  closing_minute_sun: number
+  working_minutes_sun: number
 }
 
 interface Product {
@@ -54,28 +54,28 @@ const STORE_COLORS: Record<string, string> = {
 
 type MinutesKey =
   | 'opening_minute_mon'
-  | 'closing_minute_mon'
+  | 'working_minutes_mon'
   | 'opening_minute_tue'
-  | 'closing_minute_tue'
+  | 'working_minutes_tue'
   | 'opening_minute_wed'
-  | 'closing_minute_wed'
+  | 'working_minutes_wed'
   | 'opening_minute_thu'
-  | 'closing_minute_thu'
+  | 'working_minutes_thu'
   | 'opening_minute_fri'
-  | 'closing_minute_fri'
+  | 'working_minutes_fri'
   | 'opening_minute_sat'
-  | 'closing_minute_sat'
+  | 'working_minutes_sat'
   | 'opening_minute_sun'
-  | 'closing_minute_sun'
+  | 'working_minutes_sun'
 
-const DAY_ROWS: { label: string; open: MinutesKey; close: MinutesKey }[] = [
-  { label: 'Ponedeljak', open: 'opening_minute_mon', close: 'closing_minute_mon' },
-  { label: 'Utorak', open: 'opening_minute_tue', close: 'closing_minute_tue' },
-  { label: 'Sreda', open: 'opening_minute_wed', close: 'closing_minute_wed' },
-  { label: 'Četvrtak', open: 'opening_minute_thu', close: 'closing_minute_thu' },
-  { label: 'Petak', open: 'opening_minute_fri', close: 'closing_minute_fri' },
-  { label: 'Subota', open: 'opening_minute_sat', close: 'closing_minute_sat' },
-  { label: 'Nedelja', open: 'opening_minute_sun', close: 'closing_minute_sun' },
+const DAY_ROWS: { label: string; open: MinutesKey; work: MinutesKey }[] = [
+  { label: 'Ponedeljak', open: 'opening_minute_mon', work: 'working_minutes_mon' },
+  { label: 'Utorak', open: 'opening_minute_tue', work: 'working_minutes_tue' },
+  { label: 'Sreda', open: 'opening_minute_wed', work: 'working_minutes_wed' },
+  { label: 'Četvrtak', open: 'opening_minute_thu', work: 'working_minutes_thu' },
+  { label: 'Petak', open: 'opening_minute_fri', work: 'working_minutes_fri' },
+  { label: 'Subota', open: 'opening_minute_sat', work: 'working_minutes_sat' },
+  { label: 'Nedelja', open: 'opening_minute_sun', work: 'working_minutes_sun' },
 ]
 
 function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => void }) {
@@ -118,11 +118,22 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
   }, [storeId])
 
   const todayIndex = getSerbiaWeekday()
-  const nowKey = `opening_minute_${['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][todayIndex]}` as MinutesKey
-  const closeKey = nowKey.replace('opening', 'closing') as MinutesKey
+  const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+  const nowKey = `opening_minute_${dayKeys[todayIndex]}` as MinutesKey
   const nowMinutes = getSerbiaMinutes()
   const isClosed = store
-    ? nowMinutes < store[nowKey] || nowMinutes >= store[closeKey]
+    ? (() => {
+        const todayOpen = store[nowKey]
+        const todayClose = todayOpen + store[`working_minutes_${dayKeys[todayIndex]}` as MinutesKey]
+        const inTodayShift = todayOpen <= nowMinutes && nowMinutes < todayClose
+
+        const yDayKey = dayKeys[(todayIndex + 6) % 7]
+        const yOpen = store[`opening_minute_${yDayKey}` as MinutesKey]
+        const yClose = yOpen + store[`working_minutes_${yDayKey}` as MinutesKey]
+        const inYesterdayOvernight = yClose > 1440 && nowMinutes < yClose - 1440
+
+        return !(inTodayShift || inYesterdayOvernight)
+      })()
     : false
   const typeColor = store ? STORE_COLORS[store.store_type] ?? '#6b7280' : '#6b7280'
   const typeLabel = store ? STORE_LABELS[store.store_type] ?? 'Ostalo' : ''
@@ -262,7 +273,7 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
               <ul className="mt-2">
                 {DAY_ROWS.map((row) => {
                   const open = store[row.open]
-                  const close = store[row.close]
+                  const close = open + store[row.work]
                   const isToday = row.open === nowKey
                   return (
                     <li

@@ -226,11 +226,14 @@ function isStoreDimmed(store: Store, nowMinutes: number): boolean {
 }
 
 function isStoreClosed(store: Store, nowMinutes: number): boolean {
-  return nowMinutes < store.today_opening_minute || nowMinutes >= store.today_closing_minute
+  const open = store.today_opening_minute
+  const close = store.today_closing_minute
+  if (close > 1440 && nowMinutes < close - 1440) return false
+  return nowMinutes < open || nowMinutes >= close
 }
 
 function formatMinutes(minutes: number): string {
-  const h = Math.floor(minutes / 60).toString().padStart(2, '0')
+  const h = Math.floor((minutes % 1440) / 60).toString().padStart(2, '0')
   const m = (minutes % 60).toString().padStart(2, '0')
   return `${h}:${m}`
 }
