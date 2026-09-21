@@ -20,6 +20,16 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=8)
 
 
+class RequestRecoveryCode(BaseModel):
+    email: str
+
+
+class RecoverAccount(BaseModel):
+    email: str
+    code: str
+    new_password: str = Field(min_length=8)
+
+
 class UserCreate(BaseModel):
     email: str
     name: str | None = None

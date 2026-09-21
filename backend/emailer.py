@@ -42,3 +42,17 @@ def send_temporary_password(email: str, temp_password: str) -> None:
         "— NeBacaj tim"
     )
     _send("Vaša NeBacaj lozinka", body, email)
+
+
+def send_recovery_code(email: str, code: str, expires_minutes: int) -> None:
+    if not SENDER_EMAIL or not SENDER_APP_PASSWORD:
+        return
+    body = (
+        "Pozdrav,\n\n"
+        "Zatražili ste obnovu lozinke za NeBacaj.\n"
+        f"Vaš jednokratni kod: {code}\n\n"
+        f"Kod važi {expires_minutes} minuta.\n"
+        "Ako niste vi zatražili obnovu, ignorišite ovaj mejl.\n\n"
+        "— NeBacaj tim"
+    )
+    _send("Vaš NeBacaj kod za obnovu lozinke", body, email)

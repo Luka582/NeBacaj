@@ -117,6 +117,16 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
 
 
+class RecoveryCode(Base):
+    __tablename__ = "recovery_codes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
+    code_hash: Mapped[str] = mapped_column(String, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
+
+
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

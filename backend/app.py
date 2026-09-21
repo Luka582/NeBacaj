@@ -8,11 +8,11 @@ from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .db import Store, Product, User, UserRole, get_session, init_db
-from .emailer import send_temporary_password
+from .db import Store, Product, User, UserRole, RecoveryCode, get_session, init_db, now_serbia
+from .emailer import send_recovery_code, send_temporary_password
 from .schemas import (
     ChangePasswordRequest,
     LoginRequest,
@@ -21,6 +21,8 @@ from .schemas import (
     ProductResponse,
     ProductSearchResult,
     ProductUpdate,
+    RecoverAccount,
+    RequestRecoveryCode,
     StoreCreate,
     StoreMinimalResponse,
     StoreResponse,
@@ -32,6 +34,7 @@ from .schemas import (
 )
 from .security import (
     create_access_token,
+    generate_recovery_code,
     generate_temp_password,
     get_current_user,
     get_current_user_allowing_password_change,
@@ -58,6 +61,10 @@ app.add_middleware(
 )
 
 SERBIA_TZ = ZoneInfo("Europe/Belgrade")
+
+RECOVERY_CODE_TTL_MINUTES = 10
+RECOVERY_CODE_COOLDOWN_SECONDS = 60
+_recovery_code_cooldown: dict[str, float] = {}
 
 DAY_OPEN_COLUMNS = {
     0: Store.opening_minute_mon,
@@ -389,6 +396,13 @@ async def _email_temp_password(email: str, temp_password: str) -> None:
         pass
 
 
+async def _email_recovery_code(email: str, code: str, expires_minutes: int) -> None:
+    try:
+        await asyncio.to_thread(send_recovery_code, email, code, expires_minutes)
+    except Exception:
+        pass
+
+
 @app.post("/auth/login", response_model=TokenResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_session)) -> TokenResponse:
     """POST /auth/login — authenticate and receive a bearer token."""
@@ -424,6 +438,73 @@ async def change_password(
     user.must_change_password = False
     await db.commit()
     return {"detail": "Password changed"}
+
+
+@app.post("/auth/request-recovery-code")
+async def request_recovery_code(
+    body: RequestRecoveryCode,
+    db: AsyncSession = Depends(get_session),
+):
+    """POST /auth/request-recovery-code — email a one-time code to recover the account.
+
+    Always returns the same response whether the email exists or not, to avoid account probing.
+    """
+    email = _normalize_email(body.email)
+    now = datetime.now(SERBIA_TZ).timestamp()
+    if now - _recovery_code_cooldown.get(email, 0) < RECOVERY_CODE_COOLDOWN_SECONDS:
+        raise HTTPException(status_code=429, detail="Too many requests, please wait before trying again")
+
+    _recovery_code_cooldown[email] = now
+    data = await db.execute(select(User).where(User.email == email))
+    user = data.scalar_one_or_none()
+    if user is not None and user.is_active:
+        await db.execute(delete(RecoveryCode).where(RecoveryCode.user_id == user.id))
+        code = generate_recovery_code()
+        db.add(
+            RecoveryCode(
+                user_id=user.id,
+                code_hash=hash_password(code),
+                expires_at=now_serbia().replace(tzinfo=None) + timedelta(minutes=RECOVERY_CODE_TTL_MINUTES),
+            )
+        )
+        await db.commit()
+        await _email_recovery_code(user.email, code, RECOVERY_CODE_TTL_MINUTES)
+    return {"detail": "If that email exists, a recovery code has been sent"}
+
+
+@app.post("/auth/recover-account", response_model=TokenResponse)
+async def recover_account(
+    body: RecoverAccount,
+    db: AsyncSession = Depends(get_session),
+) -> TokenResponse:
+    """POST /auth/recover-account — redeem a one-time code and set a new password (logs the user in)."""
+    email = _normalize_email(body.email)
+    data = await db.execute(select(User).where(User.email == email))
+    user = data.scalar_one_or_none()
+    invalid = HTTPException(status_code=400, detail="Invalid or expired recovery code")
+    if user is None:
+        raise invalid
+
+    result = await db.execute(
+        select(RecoveryCode)
+        .where(RecoveryCode.user_id == user.id)
+        .order_by(RecoveryCode.created_at.desc())
+    )
+    recovery = result.scalars().first()
+    if recovery is None or recovery.expires_at < now_serbia().replace(tzinfo=None):
+        raise invalid
+    if not verify_password(body.code, recovery.code_hash):
+        raise invalid
+
+    await db.delete(recovery)
+    user.password_hash = hash_password(body.new_password)
+    user.must_change_password = False
+    await db.commit()
+    return TokenResponse(
+        access_token=create_access_token(user),
+        role=user.role,
+        must_change_password=False,
+    )
 
 
 @app.post("/stores", response_model=StoreResponse, dependencies=[Depends(require_admin)])
