@@ -1,6 +1,141 @@
 from pydantic import BaseModel, Field, model_validator
 from datetime import datetime
-from .db import StoreType
+from .db import StoreType, UserRole
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    role: UserRole
+    must_change_password: bool
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(min_length=8)
+
+
+class RequestRecoveryCode(BaseModel):
+    email: str
+
+
+class RecoverAccount(BaseModel):
+    email: str
+    code: str
+    new_password: str = Field(min_length=8)
+
+
+class UserCreate(BaseModel):
+    email: str
+    name: str | None = None
+    store_id: str
+
+
+class UserUpdate(BaseModel):
+    email: str | None = None
+    name: str | None = None
+    role: UserRole | None = None
+    store_id: str | None = None
+    is_active: bool | None = None
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    name: str | None
+    role: UserRole
+    store_id: str | None
+    is_active: bool
+    must_change_password: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class StoreCreate(BaseModel):
+    link: str | None = None
+    phone_number: int | None = None
+    town: str
+    street: str
+    street_number: str
+    latitude: float
+    longitude: float
+    name: str
+    description: str | None = None
+    image_url: str | None = None
+    is_active: bool = True
+    store_type: StoreType
+    opening_minute_mon: int = Field(ge=0, lt=1440)
+    working_minutes_mon: int = Field(ge=1)
+    opening_minute_tue: int = Field(ge=0, lt=1440)
+    working_minutes_tue: int = Field(ge=1)
+    opening_minute_wed: int = Field(ge=0, lt=1440)
+    working_minutes_wed: int = Field(ge=1)
+    opening_minute_thu: int = Field(ge=0, lt=1440)
+    working_minutes_thu: int = Field(ge=1)
+    opening_minute_fri: int = Field(ge=0, lt=1440)
+    working_minutes_fri: int = Field(ge=1)
+    opening_minute_sat: int = Field(ge=0, lt=1440)
+    working_minutes_sat: int = Field(ge=1)
+    opening_minute_sun: int = Field(ge=0, lt=1440)
+    working_minutes_sun: int = Field(ge=1)
+
+
+class StoreUpdate(BaseModel):
+    link: str | None = None
+    phone_number: int | None = None
+    town: str | None = None
+    street: str | None = None
+    street_number: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    name: str | None = None
+    description: str | None = None
+    image_url: str | None = None
+    is_active: bool | None = None
+    store_type: StoreType | None = None
+    opening_minute_mon: int | None = Field(default=None, ge=0, lt=1440)
+    working_minutes_mon: int | None = Field(default=None, ge=1)
+    opening_minute_tue: int | None = Field(default=None, ge=0, lt=1440)
+    working_minutes_tue: int | None = Field(default=None, ge=1)
+    opening_minute_wed: int | None = Field(default=None, ge=0, lt=1440)
+    working_minutes_wed: int | None = Field(default=None, ge=1)
+    opening_minute_thu: int | None = Field(default=None, ge=0, lt=1440)
+    working_minutes_thu: int | None = Field(default=None, ge=1)
+    opening_minute_fri: int | None = Field(default=None, ge=0, lt=1440)
+    working_minutes_fri: int | None = Field(default=None, ge=1)
+    opening_minute_sat: int | None = Field(default=None, ge=0, lt=1440)
+    working_minutes_sat: int | None = Field(default=None, ge=1)
+    opening_minute_sun: int | None = Field(default=None, ge=0, lt=1440)
+    working_minutes_sun: int | None = Field(default=None, ge=1)
+
+
+class ProductCreate(BaseModel):
+    store_id: str
+    amount: int | None = Field(default=None, ge=1)
+    old_price: float = Field(ge=0)
+    new_price: float = Field(ge=0)
+    name: str
+    description: str | None = None
+    image_url: str | None = None
+    expiration_date: datetime | None = None
+
+
+class ProductUpdate(BaseModel):
+    store_id: str | None = None
+    amount: int | None = Field(default=None, ge=1)
+    old_price: float | None = Field(default=None, ge=0)
+    new_price: float | None = Field(default=None, ge=0)
+    name: str | None = None
+    description: str | None = None
+    image_url: str | None = None
+    is_active: bool | None = None
+    expiration_date: datetime | None = None
 
 
 class StoreResponse(BaseModel):
