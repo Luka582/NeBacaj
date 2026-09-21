@@ -52,6 +52,7 @@ class Store(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_file_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     store_type: Mapped[StoreType] = mapped_column(
         Enum(
@@ -91,6 +92,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_file_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     expiration_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     creation_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
@@ -130,6 +132,10 @@ class RecoveryCode(Base):
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        for table in ("stores", "products"):
+            columns = (await conn.exec_driver_sql(f"PRAGMA table_info({table})")).fetchall()
+            if not any(column[1] == "image_file_id" for column in columns):
+                await conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN image_file_id TEXT")
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

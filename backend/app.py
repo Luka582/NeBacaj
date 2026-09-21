@@ -4,15 +4,18 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, time, timedelta
 from math import asin, cos, radians, sin, sqrt
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db import Store, Product, User, UserRole, RecoveryCode, get_session, init_db, now_serbia
 from .emailer import send_recovery_code, send_temporary_password
+from .images import delete_image, upload_image
 from .schemas import (
     ChangePasswordRequest,
     LoginRequest,
@@ -65,6 +68,8 @@ SERBIA_TZ = ZoneInfo("Europe/Belgrade")
 RECOVERY_CODE_TTL_MINUTES = 10
 RECOVERY_CODE_COOLDOWN_SECONDS = 60
 _recovery_code_cooldown: dict[str, float] = {}
+
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 DAY_OPEN_COLUMNS = {
     0: Store.opening_minute_mon,
@@ -403,6 +408,73 @@ async def _email_recovery_code(email: str, code: str, expires_minutes: int) -> N
         pass
 
 
+def _parse_form_json(data: str, model):
+    try:
+        return model.model_validate_json(data)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
+
+
+def _image_suffix(image: UploadFile) -> str:
+    suffix = Path(image.filename or "").suffix.lower()
+    if suffix.startswith(".") and 1 <= len(suffix) - 1 <= 5 and suffix[1:].isalnum():
+        return suffix
+    subtype = (image.content_type or "").split("/")[-1].lower()
+    if subtype.isalnum():
+        return f".{subtype}"
+    return ".jpg"
+
+
+async def _read_valid_image(image: UploadFile) -> bytes:
+    if not (image.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="Uploaded file must be an image")
+    data = await image.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Uploaded image is empty")
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="Image too large (max 10 MB)")
+    return data
+
+
+async def _apply_image(
+    entity: Store | Product,
+    folder: str,
+    image: UploadFile | None,
+    image_url: str | None,
+    image_url_set: bool,
+) -> None:
+    old_file_id = entity.image_file_id
+    if image is not None:
+        if image_url_set:
+            raise HTTPException(status_code=400, detail="Provide either image_url or an image file, not both")
+        data = await _read_valid_image(image)
+        try:
+            url, file_id = await upload_image(
+                data,
+                f"{entity.id}{_image_suffix(image)}",
+                folder,
+                image.content_type or "application/octet-stream",
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="Image upload failed") from exc
+        entity.image_url = url
+        entity.image_file_id = file_id
+        if old_file_id and old_file_id != file_id:
+            await delete_image(old_file_id)
+    elif image_url_set:
+        entity.image_url = image_url
+        entity.image_file_id = None
+        if old_file_id:
+            await delete_image(old_file_id)
+
+
+async def _clear_image(entity: Store | Product) -> None:
+    if entity.image_file_id:
+        await delete_image(entity.image_file_id)
+    entity.image_url = None
+    entity.image_file_id = None
+
+
 @app.post("/auth/login", response_model=TokenResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_session)) -> TokenResponse:
     """POST /auth/login — authenticate and receive a bearer token."""
@@ -508,20 +580,37 @@ async def recover_account(
 
 
 @app.post("/stores", response_model=StoreResponse, dependencies=[Depends(require_admin)])
-async def create_store(body: StoreCreate, db: AsyncSession = Depends(get_session)) -> StoreResponse:
-    """POST /stores — create a store (admin only)."""
-    store = Store(**body.model_dump())
+async def create_store(
+    data: str = Form(...),
+    image: UploadFile | None = File(default=None),
+    db: AsyncSession = Depends(get_session),
+) -> StoreResponse:
+    """POST /stores — create a store (admin only). Multipart: `data` JSON + optional `image` file."""
+    body = _parse_form_json(data, StoreCreate)
+    store = Store(**body.model_dump(exclude={"image_url"}))
     db.add(store)
+    await db.flush()
+    await _apply_image(store, "/stores", image, body.image_url, "image_url" in body.model_fields_set)
     await db.commit()
     return StoreResponse.model_validate(store)
 
 
 @app.put("/stores/{store_id}", response_model=StoreResponse, dependencies=[Depends(require_admin)])
-async def update_store(store_id: str, body: StoreUpdate, db: AsyncSession = Depends(get_session)) -> StoreResponse:
-    """PUT /stores/{id} — update a store (admin only)."""
+async def update_store(
+    store_id: str,
+    data: str = Form(...),
+    image: UploadFile | None = File(default=None),
+    db: AsyncSession = Depends(get_session),
+) -> StoreResponse:
+    """PUT /stores/{id} — update a store (admin only). Multipart: `data` JSON + optional `image` file."""
     store = await _get_store_or_404(store_id, db)
-    for field, value in body.model_dump(exclude_unset=True).items():
+    body = _parse_form_json(data, StoreUpdate)
+    fields = body.model_dump(exclude_unset=True)
+    image_url_set = "image_url" in fields
+    fields.pop("image_url", None)
+    for field, value in fields.items():
         setattr(store, field, value)
+    await _apply_image(store, "/stores", image, body.image_url, image_url_set)
     await db.commit()
     return StoreResponse.model_validate(store)
 
@@ -531,6 +620,7 @@ async def delete_store(store_id: str, db: AsyncSession = Depends(get_session)) -
     """DELETE /stores/{id} — soft-delete a store (admin only)."""
     store = await _get_store_or_404(store_id, db)
     store.is_active = False
+    await _clear_image(store)
     await db.commit()
 
 
@@ -617,15 +707,19 @@ async def reset_worker_password(worker_id: str, db: AsyncSession = Depends(get_s
 
 @app.post("/products", response_model=ProductResponse)
 async def create_product(
-    body: ProductCreate,
+    data: str = Form(...),
+    image: UploadFile | None = File(default=None),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ) -> ProductResponse:
     """POST /products — create a product in a store the current user manages."""
+    body = _parse_form_json(data, ProductCreate)
     _ensure_store_access(user, body.store_id)
     await _get_store_or_404(body.store_id, db)
-    product = Product(**body.model_dump())
+    product = Product(**body.model_dump(exclude={"image_url"}))
     db.add(product)
+    await db.flush()
+    await _apply_image(product, "/products", image, body.image_url, "image_url" in body.model_fields_set)
     await db.commit()
     return ProductResponse.model_validate(product)
 
@@ -633,20 +727,25 @@ async def create_product(
 @app.put("/products/{product_id}", response_model=ProductResponse)
 async def update_product(
     product_id: str,
-    body: ProductUpdate,
+    data: str = Form(...),
+    image: UploadFile | None = File(default=None),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ) -> ProductResponse:
     """PUT /products/{id} — update a product (admin, or the worker managing its store)."""
     product = await _get_product_or_404(product_id, db)
     _ensure_store_access(user, product.store_id)
-    data = body.model_dump(exclude_unset=True)
-    if user.role != UserRole.admin and "store_id" in data and data["store_id"] != product.store_id:
+    body = _parse_form_json(data, ProductUpdate)
+    fields = body.model_dump(exclude_unset=True)
+    image_url_set = "image_url" in fields
+    fields.pop("image_url", None)
+    if user.role != UserRole.admin and "store_id" in fields and fields["store_id"] != product.store_id:
         raise HTTPException(status_code=403, detail="You cannot move a product to another store")
-    if "store_id" in data:
-        await _get_store_or_404(data["store_id"], db)
-    for field, value in data.items():
+    if "store_id" in fields:
+        await _get_store_or_404(fields["store_id"], db)
+    for field, value in fields.items():
         setattr(product, field, value)
+    await _apply_image(product, "/products", image, body.image_url, image_url_set)
     await db.commit()
     return ProductResponse.model_validate(product)
 
@@ -661,4 +760,5 @@ async def delete_product(
     product = await _get_product_or_404(product_id, db)
     _ensure_store_access(user, product.store_id)
     product.is_active = False
+    await _clear_image(product)
     await db.commit()
