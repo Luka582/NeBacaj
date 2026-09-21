@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+import os
+import smtplib
+from email.message import EmailMessage
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+
+SENDER_EMAIL = os.getenv("AUTO_REPLY_EMAIL", "")
+SENDER_APP_PASSWORD = os.getenv("AUTO_REPLY_EMAIL_APP_PASSWORD", "")
+
+
+def _send(subject: str, body: str, to_email: str) -> None:
+    if not SENDER_EMAIL or not SENDER_APP_PASSWORD:
+        return
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = SENDER_EMAIL
+    message["To"] = to_email
+    message.set_content(body)
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+        server.send_message(message)
+
+
+def send_temporary_password(email: str, temp_password: str) -> None:
+    if not SENDER_EMAIL or not SENDER_APP_PASSWORD:
+        return
+    body = (
+        "Pozdrav,\n\n"
+        "Vaš nalog za NeBacaj je napravljen.\n"
+        f"Adresa: {email}\n"
+        f"Privremena lozinka: {temp_password}\n\n"
+        "Prijavite se i promenite lozinku pri prvoj prijavi.\n\n"
+        "— NeBacaj tim"
+    )
+    _send("Vaša NeBacaj lozinka", body, email)

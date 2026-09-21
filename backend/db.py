@@ -33,6 +33,11 @@ class StoreType(StrEnum):
     other = "other"
 
 
+class UserRole(StrEnum):
+    admin = "admin"
+    worker = "worker"
+
+
 class Store(Base):
     __tablename__ = "stores"
 
@@ -89,6 +94,27 @@ class Product(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     expiration_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     creation_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    role: Mapped[UserRole] = mapped_column(
+        Enum(
+            UserRole.admin,
+            UserRole.worker,
+            name="user_role",
+        ),
+        nullable=False,
+    )
+    store_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("stores.id"), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
 
 
 async def init_db() -> None:

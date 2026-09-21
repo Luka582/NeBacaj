@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, time, timedelta
 from math import asin, cos, radians, sin, sqrt
@@ -10,13 +11,33 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .db import Store, Product, get_session, init_db
+from .db import Store, Product, User, UserRole, get_session, init_db
+from .emailer import send_temporary_password
 from .schemas import (
-    StoreResponse,
-    StoreMinimalResponse,
-    ProductResponse,
+    ChangePasswordRequest,
+    LoginRequest,
+    ProductCreate,
     ProductMinimalResponse,
+    ProductResponse,
     ProductSearchResult,
+    ProductUpdate,
+    StoreCreate,
+    StoreMinimalResponse,
+    StoreResponse,
+    StoreUpdate,
+    TokenResponse,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+)
+from .security import (
+    create_access_token,
+    generate_temp_password,
+    get_current_user,
+    get_current_user_allowing_password_change,
+    hash_password,
+    require_admin,
+    verify_password,
 )
 
 
@@ -326,3 +347,237 @@ async def get_towns(db: AsyncSession = Depends(get_session)) -> list[str]:
     )
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+async def _get_store_or_404(store_id: str, db: AsyncSession) -> Store:
+    result = await db.execute(select(Store).where(Store.id == store_id))
+    store = result.scalar_one_or_none()
+    if store is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+    return store
+
+
+async def _get_product_or_404(product_id: str, db: AsyncSession) -> Product:
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
+async def _get_user_or_404(user_id: str, db: AsyncSession) -> User:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+def _ensure_store_access(user: User, store_id: str) -> None:
+    if user.role != UserRole.admin and user.store_id != store_id:
+        raise HTTPException(status_code=403, detail="You do not manage this store")
+
+
+async def _email_temp_password(email: str, temp_password: str) -> None:
+    try:
+        await asyncio.to_thread(send_temporary_password, email, temp_password)
+    except Exception:
+        pass
+
+
+@app.post("/auth/login", response_model=TokenResponse)
+async def login(body: LoginRequest, db: AsyncSession = Depends(get_session)) -> TokenResponse:
+    """POST /auth/login — authenticate and receive a bearer token."""
+    result = await db.execute(select(User).where(User.email == _normalize_email(body.email)))
+    user = result.scalar_one_or_none()
+    if user is None or not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="Account disabled")
+    return TokenResponse(
+        access_token=create_access_token(user),
+        role=user.role,
+        must_change_password=user.must_change_password,
+    )
+
+
+@app.get("/auth/me", response_model=UserResponse)
+async def get_me(user: User = Depends(get_current_user_allowing_password_change)) -> User:
+    """GET /auth/me — return the currently authenticated user."""
+    return user
+
+
+@app.post("/auth/change-password")
+async def change_password(
+    body: ChangePasswordRequest,
+    user: User = Depends(get_current_user_allowing_password_change),
+    db: AsyncSession = Depends(get_session),
+):
+    """POST /auth/change-password — change the current user's password."""
+    if not verify_password(body.old_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    user.password_hash = hash_password(body.new_password)
+    user.must_change_password = False
+    await db.commit()
+    return {"detail": "Password changed"}
+
+
+@app.post("/stores", response_model=StoreResponse, dependencies=[Depends(require_admin)])
+async def create_store(body: StoreCreate, db: AsyncSession = Depends(get_session)) -> StoreResponse:
+    """POST /stores — create a store (admin only)."""
+    store = Store(**body.model_dump())
+    db.add(store)
+    await db.commit()
+    return StoreResponse.model_validate(store)
+
+
+@app.put("/stores/{store_id}", response_model=StoreResponse, dependencies=[Depends(require_admin)])
+async def update_store(store_id: str, body: StoreUpdate, db: AsyncSession = Depends(get_session)) -> StoreResponse:
+    """PUT /stores/{id} — update a store (admin only)."""
+    store = await _get_store_or_404(store_id, db)
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(store, field, value)
+    await db.commit()
+    return StoreResponse.model_validate(store)
+
+
+@app.delete("/stores/{store_id}", status_code=204, dependencies=[Depends(require_admin)])
+async def delete_store(store_id: str, db: AsyncSession = Depends(get_session)) -> None:
+    """DELETE /stores/{id} — soft-delete a store (admin only)."""
+    store = await _get_store_or_404(store_id, db)
+    store.is_active = False
+    await db.commit()
+
+
+@app.get("/workers", response_model=list[UserResponse], dependencies=[Depends(require_admin)])
+async def list_workers(db: AsyncSession = Depends(get_session)) -> list[User]:
+    """GET /workers — list all worker accounts (admin only)."""
+    result = await db.execute(select(User).where(User.role == UserRole.worker).order_by(User.created_at.desc()))
+    return result.scalars().all()
+
+
+@app.post("/workers", response_model=UserResponse, dependencies=[Depends(require_admin)])
+async def create_worker(body: UserCreate, db: AsyncSession = Depends(get_session)) -> UserResponse:
+    """POST /workers — create a worker account, email them a temporary password (admin only)."""
+    email = _normalize_email(body.email)
+    if "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email")
+    existing = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="A user with this email already exists")
+    await _get_store_or_404(body.store_id, db)
+
+    temp_password = generate_temp_password()
+    user = User(
+        email=email,
+        name=body.name,
+        role=UserRole.worker,
+        store_id=body.store_id,
+        password_hash=hash_password(temp_password),
+        must_change_password=True,
+    )
+    db.add(user)
+    await db.commit()
+    await _email_temp_password(user.email, temp_password)
+    return UserResponse.model_validate(user)
+
+
+@app.put("/workers/{worker_id}", response_model=UserResponse, dependencies=[Depends(require_admin)])
+async def update_worker(worker_id: str, body: UserUpdate, db: AsyncSession = Depends(get_session)) -> UserResponse:
+    """PUT /workers/{id} — update a worker's details (admin only)."""
+    user = await _get_user_or_404(worker_id, db)
+    data = body.model_dump(exclude_unset=True)
+
+    if "email" in data:
+        email = _normalize_email(data["email"])
+        if "@" not in email:
+            raise HTTPException(status_code=400, detail="Invalid email")
+        conflicting = (
+            await db.execute(select(User).where(User.email == email, User.id != worker_id))
+        ).scalar_one_or_none()
+        if conflicting is not None:
+            raise HTTPException(status_code=409, detail="A user with this email already exists")
+        data["email"] = email
+
+    if data.get("role") == UserRole.admin:
+        data["store_id"] = None
+    elif "store_id" in data and data["store_id"] is not None:
+        await _get_store_or_404(data["store_id"], db)
+
+    for field, value in data.items():
+        setattr(user, field, value)
+    await db.commit()
+    return UserResponse.model_validate(user)
+
+
+@app.delete("/workers/{worker_id}", status_code=204, dependencies=[Depends(require_admin)])
+async def delete_worker(worker_id: str, db: AsyncSession = Depends(get_session)) -> None:
+    """DELETE /workers/{id} — soft-delete a worker account (admin only)."""
+    user = await _get_user_or_404(worker_id, db)
+    user.is_active = False
+    await db.commit()
+
+
+@app.post("/workers/{worker_id}/reset-password", response_model=UserResponse, dependencies=[Depends(require_admin)])
+async def reset_worker_password(worker_id: str, db: AsyncSession = Depends(get_session)) -> UserResponse:
+    """POST /workers/{id}/reset-password — generate a new temporary password and email it (admin only)."""
+    user = await _get_user_or_404(worker_id, db)
+    temp_password = generate_temp_password()
+    user.password_hash = hash_password(temp_password)
+    user.must_change_password = True
+    await db.commit()
+    await _email_temp_password(user.email, temp_password)
+    return UserResponse.model_validate(user)
+
+
+@app.post("/products", response_model=ProductResponse)
+async def create_product(
+    body: ProductCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> ProductResponse:
+    """POST /products — create a product in a store the current user manages."""
+    _ensure_store_access(user, body.store_id)
+    await _get_store_or_404(body.store_id, db)
+    product = Product(**body.model_dump())
+    db.add(product)
+    await db.commit()
+    return ProductResponse.model_validate(product)
+
+
+@app.put("/products/{product_id}", response_model=ProductResponse)
+async def update_product(
+    product_id: str,
+    body: ProductUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> ProductResponse:
+    """PUT /products/{id} — update a product (admin, or the worker managing its store)."""
+    product = await _get_product_or_404(product_id, db)
+    _ensure_store_access(user, product.store_id)
+    data = body.model_dump(exclude_unset=True)
+    if user.role != UserRole.admin and "store_id" in data and data["store_id"] != product.store_id:
+        raise HTTPException(status_code=403, detail="You cannot move a product to another store")
+    if "store_id" in data:
+        await _get_store_or_404(data["store_id"], db)
+    for field, value in data.items():
+        setattr(product, field, value)
+    await db.commit()
+    return ProductResponse.model_validate(product)
+
+
+@app.delete("/products/{product_id}", status_code=204)
+async def delete_product(
+    product_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> None:
+    """DELETE /products/{id} — soft-delete a product (admin, or the worker managing its store)."""
+    product = await _get_product_or_404(product_id, db)
+    _ensure_store_access(user, product.store_id)
+    product.is_active = False
+    await db.commit()
