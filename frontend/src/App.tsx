@@ -601,7 +601,9 @@ function App() {
                     <div className="store-popup-row">
                       <span>Radno vreme</span>
                       <span>
-                        {formatMinutes(store.today_opening_minute)} – {formatMinutes(store.today_closing_minute)}
+                        {store.today_opening_minute === store.today_closing_minute
+                          ? 'Zatvoreno'
+                          : `${formatMinutes(store.today_opening_minute)} – ${formatMinutes(store.today_closing_minute)}`}
                       </span>
                     </div>
                     <button

@@ -96,8 +96,8 @@ role can log in — worker accounts are rejected.
 What you can do from the panel:
 
 - **Stores** — create and edit stores (name, address, type, link, phone,
-  description), set per-day working hours (with 24/7 and 09:00–17:00 presets),
-  set or upload an image, and soft-delete.
+  description), set per-day working hours (0 minutes = closed that day; 24/7 and
+  09:00–17:00 presets), set or upload an image, and soft-delete.
 - **Products** — add products to a store, set old/new price, amount and
   expiration date, upload an image, and soft-delete. Old price must be greater
   than or equal to the new price.

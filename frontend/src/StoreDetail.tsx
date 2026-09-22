@@ -123,8 +123,10 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
   const nowMinutes = getSerbiaMinutes()
   const isClosed = store
     ? (() => {
+        const todayWork = store[`working_minutes_${dayKeys[todayIndex]}` as MinutesKey]
+        if (todayWork === 0) return true
         const todayOpen = store[nowKey]
-        const todayClose = todayOpen + store[`working_minutes_${dayKeys[todayIndex]}` as MinutesKey]
+        const todayClose = todayOpen + todayWork
         const inTodayShift = todayOpen <= nowMinutes && nowMinutes < todayClose
 
         const yDayKey = dayKeys[(todayIndex + 6) % 7]
@@ -290,7 +292,13 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                           </span>
                         )}
                       </span>
-                      <span>{formatMinutes(open)} – {formatMinutes(close)}</span>
+                      <span>
+                        {store[row.work] === 0 ? (
+                          <span className="text-slate-300">Zatvoreno</span>
+                        ) : (
+                          `${formatMinutes(open)} – ${formatMinutes(close)}`
+                        )}
+                      </span>
                     </li>
                   )
                 })}

@@ -93,13 +93,16 @@ def render_hours(prefix: str) -> dict[str, tuple[int, int]]:
             opening_time = st.time_input(f"Opening ({label})", key=f"{prefix}_open_{day}")
         with middle:
             duration = st.number_input(
-                f"Minutes ({label})", min_value=1, max_value=1440, step=15, key=f"{prefix}_dur_{day}"
+                f"Minutes ({label})", min_value=0, max_value=1440, step=15, key=f"{prefix}_dur_{day}"
             )
         with right:
             opening = opening_time.hour * 60 + opening_time.minute
             closing = opening + duration
-            extra = " (+1d)" if closing >= 1440 else ""
-            st.markdown(f"**Closes:** {fmt_minutes(closing)}{extra}")
+            if duration == 0:
+                st.markdown("**Zatvoreno**")
+            else:
+                extra = " (+1d)" if closing >= 1440 else ""
+                st.markdown(f"**Closes:** {fmt_minutes(closing)}{extra}")
         result[day] = (opening, duration)
     return result
 
