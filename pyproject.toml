@@ -15,4 +15,5 @@ dependencies = [
     "uvicorn>=0.52.4",
     "imagekitio>=5.9.0",
     "python-multipart>=0.0.9",
+    "streamlit>=1.40",
 ]
