@@ -471,7 +471,7 @@ async def _apply_image(
 async def _clear_image(entity: Store | Product) -> None:
     if entity.image_file_id:
         await delete_image(entity.image_file_id)
-    entity.image_url = None
+        entity.image_url = None
     entity.image_file_id = None
 
 
