@@ -617,10 +617,32 @@ async def update_store(
 
 @app.delete("/stores/{store_id}", status_code=204, dependencies=[Depends(require_admin)])
 async def delete_store(store_id: str, db: AsyncSession = Depends(get_session)) -> None:
-    """DELETE /stores/{id} — soft-delete a store (admin only)."""
+    """DELETE /stores/{id} — soft-delete a store, along with its products and workers (admin only)."""
     store = await _get_store_or_404(store_id, db)
     store.is_active = False
     await _clear_image(store)
+
+    products = (
+        await db.execute(
+            select(Product).where(Product.store_id == store_id, Product.is_active.is_(True))
+        )
+    ).scalars().all()
+    for product in products:
+        product.is_active = False
+        await _clear_image(product)
+
+    workers = (
+        await db.execute(
+            select(User).where(
+                User.role == UserRole.worker,
+                User.store_id == store_id,
+                User.is_active.is_(True),
+            )
+        )
+    ).scalars().all()
+    for worker in workers:
+        worker.is_active = False
+
     await db.commit()
 
 
