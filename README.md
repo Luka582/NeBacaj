@@ -12,10 +12,23 @@ Map-based web application for finding stores and their products across Serbian c
 
 ### Backend
 
-Install Python dependencies (handles both aiosqlite and SQLAlchemy async):
+Install Python dependencies:
 
 ```bash
 uv sync
+```
+
+Create the environment file and fill in your keys (see
+[Environment Variables](#environment-variables) below):
+
+```bash
+cp .env.example .env
+```
+
+Create the initial admin account (only the first time):
+
+```bash
+uv run python -m backend.seed_admin
 ```
 
 ### Frontend
@@ -32,13 +45,20 @@ npm run dev          # dev server with hot reload on localhost:5173
 
 ## Environment Variables
 
-Create a `.env` file in the project root with your Carto API key (required for basemap tiles):
+Create a `.env` file in the project root:
 
-```
-CARTO_API_KEY="your_key_here"
-```
-
-Get a free key at https://carto.com/basemaps/apikey.
+| Variable | Required | Description |
+| --- | --- | --- |
+| `CARTO_API_KEY` | Yes (frontend) | Key for Carto basemap tiles. Get a free key at https://carto.com/basemaps/apikey. |
+| `JWT_SECRET` | Yes | Secret used to sign auth tokens. Generate one, e.g. `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |
+| `ADMIN_EMAIL` | Yes | Email of the initial admin account. Used by `backend.seed_admin`. |
+| `ADMIN_PASSWORD` | Yes | Initial password for that admin account. |
+| `AUTO_REPLY_EMAIL` | No | Gmail address used as the SMTP sender for temporary passwords and recovery codes. If empty, no emails are sent. |
+| `AUTO_REPLY_EMAIL_APP_PASSWORD` | No | Gmail **app password** for the sender address (not your regular password). |
+| `IMAGEKIT_URL_ENDPOINT` | No | ImageKit URL endpoint (e.g. `https://ik.imagekit.io/your_imagekit_id`). Needed for store/product images. |
+| `IMAGEKIT_PUBLIC_KEY` | No | ImageKit public key. |
+| `IMAGEKIT_PRIVATE_KEY` | No | ImageKit private key. Image **uploads will fail** without it. |
+| `ADMIN_BACKEND_URL` | No | Default backend URL the admin panel tries on login. Defaults to `http://localhost:8000`; can also be typed in at the panel's login screen. |
 
 ## Running
 
@@ -55,6 +75,50 @@ cd frontend && npm run dev -- --host 0.0.0.0
 ```
 
 The frontend proxies `/api/*` requests to the backend automatically.
+
+### Admin panel
+
+The admin panel is a separate Streamlit app for managing stores, products and
+worker accounts. It is not part of the public frontend: run it on your own
+machine and point it at the backend.
+
+Start it in its own terminal (port 8501):
+
+```bash
+uv run streamlit run admin/app.py --server.port 8501 --server.address 127.0.0.1
+```
+
+Then open http://localhost:8501 and log in with the admin email/password from
+`.env`. If the backend is not on `localhost:8000`, type its URL on the login
+screen (or set `ADMIN_BACKEND_URL` in `.env`). Only accounts with the `admin`
+role can log in — worker accounts are rejected.
+
+What you can do from the panel:
+
+- **Stores** — create and edit stores (name, address, type, link, phone,
+  description), set per-day working hours (0 minutes = closed that day; 24/7 and
+  09:00–17:00 presets), set or upload an image, and soft-delete.
+- **Products** — add products to a store, set old/new price, amount and
+  expiration date, upload an image, and soft-delete. Old price must be greater
+  than or equal to the new price.
+- **Workers** — create worker accounts, edit them, reset passwords and
+  soft-delete. Creating or resetting a worker emails them a **temporary
+  password** — but only if SMTP is configured (`AUTO_REPLY_EMAIL` +
+  `AUTO_REPLY_EMAIL_APP_PASSWORD`). Without it the password is never delivered,
+  so set up SMTP before creating workers.
+
+Store and product deletes are soft deletes (they disappear from the public
+app) and also remove any uploaded ImageKit image.
+
+## Accounts, recovery
+
+- Passwords are stored hashed; auth uses short-lived bearer tokens
+  (`JWT_SECRET`).
+- Workers are created with a temporary password and are forced to change it on
+  first login (`must_change_password`).
+- Forgot a password? The app's login screen can email a one-time recovery code
+  (`/auth/request-recovery-code`): a code is valid for 10 minutes, and requests
+  are rate-limited (one per minute).
 
 ## config.json
 

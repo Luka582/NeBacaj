@@ -71,19 +71,19 @@ class StoreCreate(BaseModel):
     is_active: bool = True
     store_type: StoreType
     opening_minute_mon: int = Field(ge=0, lt=1440)
-    working_minutes_mon: int = Field(ge=1)
+    working_minutes_mon: int = Field(ge=0)
     opening_minute_tue: int = Field(ge=0, lt=1440)
-    working_minutes_tue: int = Field(ge=1)
+    working_minutes_tue: int = Field(ge=0)
     opening_minute_wed: int = Field(ge=0, lt=1440)
-    working_minutes_wed: int = Field(ge=1)
+    working_minutes_wed: int = Field(ge=0)
     opening_minute_thu: int = Field(ge=0, lt=1440)
-    working_minutes_thu: int = Field(ge=1)
+    working_minutes_thu: int = Field(ge=0)
     opening_minute_fri: int = Field(ge=0, lt=1440)
-    working_minutes_fri: int = Field(ge=1)
+    working_minutes_fri: int = Field(ge=0)
     opening_minute_sat: int = Field(ge=0, lt=1440)
-    working_minutes_sat: int = Field(ge=1)
+    working_minutes_sat: int = Field(ge=0)
     opening_minute_sun: int = Field(ge=0, lt=1440)
-    working_minutes_sun: int = Field(ge=1)
+    working_minutes_sun: int = Field(ge=0)
 
 
 class StoreUpdate(BaseModel):
@@ -100,19 +100,19 @@ class StoreUpdate(BaseModel):
     is_active: bool | None = None
     store_type: StoreType | None = None
     opening_minute_mon: int | None = Field(default=None, ge=0, lt=1440)
-    working_minutes_mon: int | None = Field(default=None, ge=1)
+    working_minutes_mon: int | None = Field(default=None, ge=0)
     opening_minute_tue: int | None = Field(default=None, ge=0, lt=1440)
-    working_minutes_tue: int | None = Field(default=None, ge=1)
+    working_minutes_tue: int | None = Field(default=None, ge=0)
     opening_minute_wed: int | None = Field(default=None, ge=0, lt=1440)
-    working_minutes_wed: int | None = Field(default=None, ge=1)
+    working_minutes_wed: int | None = Field(default=None, ge=0)
     opening_minute_thu: int | None = Field(default=None, ge=0, lt=1440)
-    working_minutes_thu: int | None = Field(default=None, ge=1)
+    working_minutes_thu: int | None = Field(default=None, ge=0)
     opening_minute_fri: int | None = Field(default=None, ge=0, lt=1440)
-    working_minutes_fri: int | None = Field(default=None, ge=1)
+    working_minutes_fri: int | None = Field(default=None, ge=0)
     opening_minute_sat: int | None = Field(default=None, ge=0, lt=1440)
-    working_minutes_sat: int | None = Field(default=None, ge=1)
+    working_minutes_sat: int | None = Field(default=None, ge=0)
     opening_minute_sun: int | None = Field(default=None, ge=0, lt=1440)
-    working_minutes_sun: int | None = Field(default=None, ge=1)
+    working_minutes_sun: int | None = Field(default=None, ge=0)
 
 
 class ProductCreate(BaseModel):
