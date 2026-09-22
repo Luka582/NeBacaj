@@ -554,7 +554,7 @@ async def recover_account(
     data = await db.execute(select(User).where(User.email == email))
     user = data.scalar_one_or_none()
     invalid = HTTPException(status_code=400, detail="Invalid or expired recovery code")
-    if user is None:
+    if user is None or not user.is_active:
         raise invalid
 
     result = await db.execute(
