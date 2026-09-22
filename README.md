@@ -65,7 +65,7 @@ Create a `.env` file in the project root:
 Start the backend (port 8000) in one terminal:
 
 ```bash
-uv run main.py
+uv run python -m backend.main
 ```
 
 Start the frontend dev server (port 5173) in another terminal:
