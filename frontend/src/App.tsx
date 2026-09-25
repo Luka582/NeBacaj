@@ -341,6 +341,24 @@ function App() {
   }, [inputFocused, detailStoreId, searchProductOpen])
 
   useEffect(() => {
+    let alive = true
+    fetch('/api/stores?is_active=true&only_opened=false')
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then((data: Store[]) => {
+        if (alive) setStores(data)
+      })
+      .catch((err) => {
+        if (alive) setError(err.message)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const loadStores = () => {
     fetch('/api/stores?is_active=true&only_opened=false')
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -348,7 +366,7 @@ function App() {
       })
       .then((data: Store[]) => setStores(data))
       .catch((err) => setError(err.message))
-  }, [])
+  }
 
   const towns = Array.from(new Set(stores.map((s) => s.town))).sort()
 
@@ -845,7 +863,7 @@ function App() {
           }}
         />
       )}
-      {myProductsOpen && <MyProducts onClose={() => setMyProductsOpen(false)} />}
+      {myProductsOpen && <MyProducts onClose={() => setMyProductsOpen(false)} onChanged={loadStores} />}
       {searchProductOpen && (
         <ProductDetail
           productId={searchProductOpen.productId}

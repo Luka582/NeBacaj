@@ -762,3 +762,23 @@ async def delete_product(
     product.is_active = False
     await _clear_image(product)
     await db.commit()
+
+
+@app.post("/products/{product_id}/reactivate", response_model=ProductResponse)
+async def reactivate_product(
+    product_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> ProductResponse:
+    """POST /products/{id}/reactivate — repost a product as today's (admin, or the worker managing its store).
+
+    Reactivation marks the product active and moves its creation date to now, so it lands in the
+    store's current working shift and shows up in today's product lists again.
+    """
+    product = await _get_product_or_404(product_id, db)
+    _ensure_store_access(user, product.store_id)
+    product.is_active = True
+    product.creation_date = now_serbia()
+    product.expiration_date = None
+    await db.commit()
+    return ProductResponse.model_validate(product)

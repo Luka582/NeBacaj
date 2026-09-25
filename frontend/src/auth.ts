@@ -3,6 +3,7 @@ export interface Session {
   role: string
   email: string
   must_change_password: boolean
+  store_id?: string
 }
 
 const STORAGE_KEY = 'nebacaj_session'
