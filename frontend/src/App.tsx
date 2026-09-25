@@ -5,6 +5,8 @@ import 'leaflet/dist/leaflet.css'
 import StoreDetail from './StoreDetail'
 import ProductDetail from './ProductDetail'
 import ProductSheet, { type ProductSearchResult } from './ProductSheet'
+import SettingsMenu from './SettingsMenu'
+import MyProducts from './MyProducts'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
 
 const CARTO_KEY = __CARTO_API_KEY__
@@ -244,7 +246,7 @@ function App() {
   const [selectedTown, setSelectedTown] = useState<string>('Sve')
   const [searchQuery, setSearchQuery] = useState('')
   const [townSearchOpen, setTownSearchOpen] = useState(false)
-  const [visualHeight, setVisualHeight] = useState<number | null>(null)
+  const [townOverlayH, setTownOverlayH] = useState<number | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const focusedSearch = useRef<'town' | 'product' | null>(null)
   const [radius, setRadius] = useState(50)
@@ -255,6 +257,8 @@ function App() {
   const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
   const [detailStoreId, setDetailStoreId] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [myProductsOpen, setMyProductsOpen] = useState(false)
   const markerRefs = useRef<Map<string, L.Marker>>(new Map())
   const [recentTowns, setRecentTowns] = useState<string[]>(() => {
     try {
@@ -300,6 +304,7 @@ function App() {
 
   useEffect(() => {
     if (townSearchOpen) {
+      setTownOverlayH(window.innerHeight)
       townOverlayInputRef.current?.focus()
     } else {
       focusedSearch.current = null
@@ -307,23 +312,6 @@ function App() {
       inputRef.current?.blur()
     }
   }, [townSearchOpen])
-
-  useEffect(() => {
-    const vv = window.visualViewport
-    if (!vv) return
-    let lastHeight = vv.height
-    const update = () => {
-      setVisualHeight(vv.height)
-      if (vv.height - lastHeight > 60) {
-        const el = document.activeElement
-        if (el instanceof HTMLElement && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) el.blur()
-      }
-      lastHeight = vv.height
-    }
-    update()
-    vv.addEventListener('resize', update)
-    return () => vv.removeEventListener('resize', update)
-  }, [])
 
   useEffect(() => {
     const open = detailStoreId != null || searchProductOpen != null
@@ -335,7 +323,7 @@ function App() {
   }, [detailStoreId, searchProductOpen])
 
   useEffect(() => {
-    if (inputFocused || detailStoreId != null || searchProductOpen != null) {
+    if (inputFocused || detailStoreId != null || searchProductOpen != null || settingsOpen || myProductsOpen) {
       const de = document.documentElement
       const prevBody = document.body.style.overflow
       const prevDoc = de.style.overflow
@@ -624,7 +612,7 @@ function App() {
         })}
       </MapContainer>
 
-<div className="pointer-events-auto absolute top-4 left-4 right-16 z-[1000] sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2">
+<div className="pointer-events-auto absolute top-4 left-16 right-16 z-[1000] sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2">
         <div className="relative w-full max-w-sm sm:w-96">
           <svg
             viewBox="0 0 24 24"
@@ -698,10 +686,30 @@ function App() {
           <circle cx="12" cy="10" r="2.5" />
         </svg>
       </button>
+      <button
+        type="button"
+        onClick={() => setSettingsOpen(true)}
+        title="Podešavanja"
+        aria-label="Podešavanja"
+        className="absolute top-4 left-4 z-[1001] flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-slate-600 shadow-lg backdrop-blur transition hover:bg-blue-50 active:scale-95"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-5 w-5"
+        >
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
       {townSearchOpen && (
         <div
           className="fixed inset-x-0 top-0 z-[1600] flex h-screen flex-col bg-white"
-          style={{ height: visualHeight != null ? `${visualHeight}px` : '100dvh' }}
+          style={{ height: townOverlayH != null ? `${townOverlayH}px` : '100dvh' }}
         >
           <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-2 py-3">
             <button
@@ -828,6 +836,16 @@ function App() {
         />
       )}
       {detailStoreId && <StoreDetail storeId={detailStoreId} onClose={() => setDetailStoreId(null)} />}
+      {settingsOpen && (
+        <SettingsMenu
+          onClose={() => setSettingsOpen(false)}
+          onOpenMyProducts={() => {
+            setSettingsOpen(false)
+            setMyProductsOpen(true)
+          }}
+        />
+      )}
+      {myProductsOpen && <MyProducts onClose={() => setMyProductsOpen(false)} />}
       {searchProductOpen && (
         <ProductDetail
           productId={searchProductOpen.productId}

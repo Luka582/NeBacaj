@@ -46,6 +46,7 @@ export default function ProductSheet({
 }: ProductSheetProps) {
   const [expanded, setExpanded] = useState(false)
   const [dragHeight, setDragHeight] = useState<number | null>(null)
+  const [vh] = useState(() => window.innerHeight)
   const dragRef = useRef<{ startY: number; wasExpanded: boolean } | null>(null)
 
   function beginDrag(e: React.PointerEvent) {
@@ -84,7 +85,7 @@ export default function ProductSheet({
       className={`pointer-events-auto fixed inset-x-0 bottom-0 z-[1500] flex flex-col overflow-hidden rounded-t-2xl bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.18)] ${expanded ? 'h-screen' : ''} ${
         dragHeight === null ? 'transition-[height] duration-300 ease-out' : ''
       }`}
-      style={{ height: dragHeight !== null ? `${dragHeight}px` : expanded ? '100dvh' : `${PEEK_HEIGHT}px` }}
+      style={{ height: dragHeight !== null ? `${dragHeight}px` : expanded ? `${vh}px` : `${PEEK_HEIGHT}px` }}
     >
       <div className="shrink-0 border-b border-slate-100 px-3 pt-2 pb-2">
         <button
