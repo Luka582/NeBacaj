@@ -22,7 +22,17 @@ export function tapHandlers(fn: () => void) {
   }
 }
 
+let lastFocusAt = 0
+try {
+  document.addEventListener('focusin', () => {
+    lastFocusAt = Date.now()
+  })
+} catch {
+  lastFocusAt = 0
+}
+
 export function dismissKeyboard() {
+  if (Date.now() - lastFocusAt < 800) return
   const el = document.activeElement
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.blur()
 }
