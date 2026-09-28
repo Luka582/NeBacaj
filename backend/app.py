@@ -1,19 +1,23 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, time, timedelta
 from math import asin, cos, radians, sin, sqrt
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .db import Store, Product, User, UserRole, RecoveryCode, get_session, init_db, now_serbia
+from .cleanup import cleanup_cutoff, cleanup_old_products, claim_run, run_key_for
+from .db import MaintenanceRun, Store, Product, User, UserRole, RecoveryCode, async_session, get_session, init_db, now_serbia
 from .emailer import send_recovery_code, send_temporary_password
 from .images import delete_image, upload_image
 from .schemas import (
@@ -47,10 +51,54 @@ from .security import (
 )
 
 
+_scheduler: AsyncIOScheduler | None = None
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db()
-    yield
+
+    global _scheduler
+
+    async def maintenance_job() -> None:
+        run_key = run_key_for(now_serbia())
+        async with async_session() as db:
+            if not await claim_run(db, run_key):
+                return
+            cutoff = cleanup_cutoff()
+            deleted = await cleanup_old_products(db, cutoff)
+            print(
+                f"[maintenance] {run_key}: deleted {deleted} products older than "
+                f"{cutoff:%Y-%m-%d %H:%M}"
+            )
+
+    enabled = os.getenv("CLEANUP_ENABLED", "1").lower() not in {"0", "false", "no"}
+    if enabled:
+        scheduler = AsyncIOScheduler(timezone=SERBIA_TZ)
+        scheduler.add_job(
+            maintenance_job,
+            CronTrigger(hour=3, minute=0, timezone=SERBIA_TZ),
+            misfire_grace_time=6 * 3600,
+            coalesce=True,
+            id="cleanup_old_products",
+        )
+        scheduler.start()
+        _scheduler = scheduler
+
+        async with async_session() as db:
+            run_key = run_key_for(now_serbia())
+            existing = (
+                await db.execute(select(MaintenanceRun).where(MaintenanceRun.run_key == run_key))
+            ).scalar_one_or_none()
+        if existing is None:
+            await maintenance_job()
+
+    try:
+        yield
+    finally:
+        if _scheduler is not None:
+            _scheduler.shutdown(wait=False)
+            _scheduler = None
 
 
 app = FastAPI(lifespan=lifespan)
