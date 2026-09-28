@@ -80,13 +80,45 @@ function ProductDetail({
             <h1 className="truncate text-lg leading-tight font-bold text-slate-900">{product?.name ?? 'Proizvod'}</h1>
             <p className="truncate text-xs text-slate-500">{storeName}</p>
           </div>
+          {product && typeof navigator.share === 'function' && (
+            <button
+              type="button"
+              onClick={() => {
+                navigator
+                  .share({
+                    title: `${product.name} — ${formatPrice(product.new_price)}`,
+                    text: `Evo proizvoda na NeBacaj: ${product.name} po ceni ${formatPrice(product.new_price)} (${storeName}).`,
+                    url: window.location.href,
+                  })
+                  .catch(() => {})
+              }}
+              aria-label="Podeli"
+              className="-mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 active:bg-brand-50"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+              >
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="m8.59 13.51 6.83 3.98" />
+                <path d="m15.41 6.51-6.82 3.98" />
+              </svg>
+            </button>
+          )}
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-lg flex-1 px-4 pb-10">
+      <div className="mx-auto w-full max-w-lg flex-1 px-4" style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}>
         {loading && (
           <div className="flex flex-col items-center gap-3 pt-10">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
             <p className="text-sm text-slate-500">Učitavanje...</p>
           </div>
         )}
@@ -97,7 +129,7 @@ function ProductDetail({
             <button
               type="button"
               onClick={onBack}
-              className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white active:bg-blue-700"
+              className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white active:bg-brand-700"
             >
               Nazad
             </button>
@@ -120,10 +152,24 @@ function ProductDetail({
                   Nije aktivan
                 </span>
               )}
-              <p className="text-3xl font-extrabold text-red-600">{formatPrice(product.new_price)}</p>
-              {product.old_price > product.new_price && (
-                <p className="mt-1 text-base text-slate-400 line-through">{formatPrice(product.old_price)}</p>
-              )}
+              <div className="flex items-end justify-between gap-2">
+                <div>
+                  <p className="text-3xl font-extrabold text-red-600">{formatPrice(product.new_price)}</p>
+                  {product.old_price > product.new_price && (
+                    <p className="mt-1 text-base text-slate-400 line-through">{formatPrice(product.old_price)}</p>
+                  )}
+                </div>
+                {product.old_price > product.new_price && (
+                  <div className="shrink-0 rounded-xl bg-red-500 px-2.5 py-1.5 text-center">
+                    <p className="text-lg leading-none font-extrabold text-white">
+                      −{Math.round((1 - product.new_price / product.old_price) * 100)}%
+                    </p>
+                    <p className="mt-1 text-[10px] font-semibold text-white/90">
+                      Uštedi {formatPrice(Math.round(product.old_price - product.new_price))}
+                    </p>
+                  </div>
+                )}
+              </div>
             </section>
 
             <section className="mt-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -158,7 +204,7 @@ function ProductDetail({
               <button
                 type="button"
                 onClick={() => onViewStore(product.store_id)}
-                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white active:bg-blue-700"
+                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white active:bg-brand-700"
               >
                 Pogledaj radnju
                 <svg

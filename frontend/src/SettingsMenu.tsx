@@ -234,7 +234,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
   }
 
   const inputClass =
-    'w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100'
+    'w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100'
 
   return (
     <div className="fixed inset-x-0 top-0 z-[1500] flex flex-col bg-white" style={{ height: vh }}>
@@ -258,7 +258,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
             <path d="m12 19-7-7 7-7" />
           </svg>
         </button>
-        <span className="min-w-0 flex-1 truncate text-center text-lg leading-tight font-extrabold tracking-tight text-blue-600">
+        <span className="min-w-0 flex-1 truncate text-center text-lg leading-tight font-extrabold tracking-tight text-brand-600">
           NeBacaj
         </span>
         <span className="w-10 shrink-0" />
@@ -304,7 +304,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
               <button
                 type="button"
                 onClick={startRecovery}
-                className="w-full text-sm text-blue-600 underline"
+                className="w-full text-sm text-brand-600 underline"
               >
                 Zaboravili ste lozinku?
               </button>
@@ -312,7 +312,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
             <button
               type="submit"
               disabled={busy}
-              className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white active:bg-blue-700 disabled:opacity-50"
+              className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
             >
               Promeni lozinku
             </button>
@@ -326,7 +326,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
             <button
               type="button"
               onClick={onOpenMyProducts}
-              className="w-full rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white active:bg-blue-700"
+              className="w-full rounded-lg bg-brand-600 py-3 text-sm font-semibold text-white active:bg-brand-700"
             >
               Moji proizvodi
             </button>
@@ -368,7 +368,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white active:bg-blue-700 disabled:opacity-50"
+                  className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
                 >
                   Pošalji kôd
                 </button>
@@ -407,7 +407,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white active:bg-blue-700 disabled:opacity-50"
+                  className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
                 >
                   Poništi lozinku
                 </button>
@@ -448,7 +448,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
             <button
               type="submit"
               disabled={busy}
-              className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white active:bg-blue-700 disabled:opacity-50"
+              className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
             >
               Prijavi se
             </button>
@@ -456,7 +456,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
               <button
                 type="button"
                 onClick={startRecovery}
-                className="w-full text-sm text-blue-600 underline"
+                className="w-full text-sm text-brand-600 underline"
               >
                 Zaboravili ste lozinku?
               </button>
@@ -469,7 +469,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
           <h2 className="text-sm font-bold text-slate-900">Pomoć i kontakt</h2>
           <a
             href={`mailto:${SUPPORT_EMAIL}`}
-            className="mt-2 inline-flex items-center gap-2 text-sm text-blue-600"
+            className="mt-2 inline-flex items-center gap-2 text-sm text-brand-600"
           >
             <svg
               viewBox="0 0 24 24"

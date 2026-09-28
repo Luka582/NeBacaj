@@ -182,7 +182,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
   }
 
   const inputClass =
-    'w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100'
+    'w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100'
 
   return (
     <form onSubmit={handleSubmit} className="fixed inset-0 z-[2100] flex flex-col bg-white">
@@ -274,7 +274,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Kratak opis proizvoda"
             rows={3}
-            className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
           />
         </div>
         <div>
@@ -298,7 +298,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
             type="file"
             accept="image/*"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-blue-600"
+            className="block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand-600"
           />
           {file && (
             <button
@@ -318,7 +318,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white active:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
           >
             {mode === 'reactivate' ? 'Reaktiviraj za danas' : mode === 'create' ? 'Napravi proizvod' : 'Sačuvaj izmene'}
           </button>
@@ -456,11 +456,11 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
   }
 
   const primaryBtn =
-    'w-full rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white active:bg-blue-700 disabled:opacity-50'
+    'w-full rounded-lg bg-brand-600 py-3 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50'
   const pillEdit =
     'rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 active:bg-slate-50'
   const pillRevive =
-    'rounded-lg border border-blue-100 px-2.5 py-1.5 text-xs font-semibold text-blue-600 active:bg-blue-50'
+    'rounded-lg border border-brand-100 px-2.5 py-1.5 text-xs font-semibold text-brand-600 active:bg-brand-50'
   const pillDelete = 'rounded-lg border border-red-100 px-2.5 py-1.5 text-xs font-semibold text-red-500 active:bg-red-50'
 
   return (

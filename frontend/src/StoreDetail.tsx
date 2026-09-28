@@ -168,13 +168,22 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
               {store ? `${store.street} ${store.street_number}, ${store.town}` : ' '}
             </p>
           </div>
+          {store && (
+            <span
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                isClosed ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
+              }`}
+            >
+              {isClosed ? 'Zatvoreno' : 'Otvoreno'}
+            </span>
+          )}
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-lg flex-1 px-4 pb-10">
+      <div className="mx-auto w-full max-w-lg flex-1 px-4" style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}>
         {loading && (
           <div className="flex flex-col items-center gap-3 pt-10">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
             <p className="text-sm text-slate-500">Učitavanje...</p>
           </div>
         )}
@@ -185,7 +194,7 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
             <button
               type="button"
               onClick={onClose}
-              className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white active:bg-blue-700"
+              className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white active:bg-brand-700"
             >
               Nazad
             </button>
@@ -222,9 +231,9 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                   ? (
                   <a
                     href={`tel:${store.phone_number}`}
-                    className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-800 active:bg-slate-100"
+                    className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-800 active:bg-brand-50"
                   >
-                    <span className="text-blue-600">
+                    <span className="text-brand-600">
                       <svg
                         viewBox="0 0 24 24"
                         fill="none"
@@ -246,9 +255,9 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                     href={store.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-800 active:bg-slate-100"
+                    className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-800 active:bg-brand-50"
                   >
-                    <span className="text-blue-600">
+                    <span className="text-brand-600">
                       <svg
                         viewBox="0 0 24 24"
                         fill="none"
@@ -263,10 +272,33 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                         <path d="M10 14 21 3" />
                       </svg>
                     </span>
-                    <span className="truncate text-blue-700">{store.link}</span>
+                    <span className="truncate text-brand-700">{store.link}</span>
                   </a>
                 ) : null}
-                {store.phone_number == null && !store.link && <p className="text-sm text-slate-400">Nema dodatnih informacija</p>}
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                    `${store.street} ${store.street_number}, ${store.town}, Srbija`,
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-800 active:bg-brand-50"
+                >
+                  <span className="text-brand-600">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                    >
+                      <path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z" />
+                      <circle cx="12" cy="10" r="2.5" />
+                    </svg>
+                  </span>
+                  <span>Uputstvo do radnje</span>
+                </a>
               </div>
             </section>
 
@@ -287,7 +319,7 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                       <span className="flex items-center gap-2">
                         {row.label}
                         {isToday && (
-                          <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600">
+                          <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-600">
                             DANAS
                           </span>
                         )}
@@ -326,7 +358,7 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                       <button
                         type="button"
                         onClick={() => setProductDetailId(p.id)}
-                        className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm active:bg-slate-50"
+                        className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm active:bg-brand-50"
                       >
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-slate-900">{p.name}</p>
@@ -338,7 +370,12 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                         <div className="shrink-0 text-right">
                           <p className="text-sm font-bold text-red-600">{formatPrice(p.new_price)}</p>
                           {p.old_price > p.new_price && (
-                            <p className="text-xs text-slate-400 line-through">{formatPrice(p.old_price)}</p>
+                            <>
+                              <span className="mt-0.5 inline-block rounded-full bg-red-500 px-1.5 py-px text-[10px] font-bold text-white">
+                                −{Math.round((1 - p.new_price / p.old_price) * 100)}%
+                              </span>
+                              <p className="text-xs text-slate-400 line-through">{formatPrice(p.old_price)}</p>
+                            </>
                           )}
                         </div>
                         <svg
