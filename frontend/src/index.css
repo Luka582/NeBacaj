@@ -69,6 +69,16 @@ button:not(:disabled):active {
   max-width: 230px;
 }
 
+.store-popup-image {
+  display: block;
+  width: 200px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #f1f5f9;
+  margin-bottom: 10px;
+}
+
 .store-popup-badges {
   display: flex;
   gap: 6px;

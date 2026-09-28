@@ -178,6 +178,7 @@ class StoreMinimalResponse(BaseModel):
     longitude : float
     name : str
     store_type : StoreType
+    image_url: str | None = None
     today_products_count: int = Field(default=0, ge=0)
     today_opening_minute: int
     today_closing_minute: int
@@ -214,6 +215,7 @@ class ProductMinimalResponse(BaseModel):
     old_price: float = Field(ge=0)
     new_price: float = Field(ge=0)
     name: str
+    image_url: str | None = None
     creation_date: datetime
 
     model_config = {"from_attributes": True}
@@ -231,6 +233,7 @@ class ProductSearchResult(BaseModel):
     amount: int | None = Field(default=None, ge=1)
     old_price: float = Field(ge=0)
     new_price: float = Field(ge=0)
+    image_url: str | None = None
     store_id: str
     store_name: str
     town: str
