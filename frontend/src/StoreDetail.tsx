@@ -35,6 +35,7 @@ interface Product {
   old_price: number
   new_price: number
   name: string
+  image_url?: string | null
   creation_date: string
 }
 
@@ -360,6 +361,31 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                         onClick={() => setProductDetailId(p.id)}
                         className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm active:bg-brand-50"
                       >
+                        {p.image_url ? (
+                          <img
+                            src={cropImageUrl(p.image_url, 96, 96)}
+                            alt=""
+                            loading="lazy"
+                            className="h-11 w-11 shrink-0 rounded-lg bg-slate-100 object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="h-5 w-5"
+                            >
+                              <path d="m7.5 4.27 9 5.15" />
+                              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                              <path d="m3.3 7 8.7 5 8.7-5" />
+                              <path d="M12 22V12" />
+                            </svg>
+                          </div>
+                        )}
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-slate-900">{p.name}</p>
                           <p className="mt-0.5 text-xs text-slate-400">{relativeTimeAgo(p.creation_date)}</p>

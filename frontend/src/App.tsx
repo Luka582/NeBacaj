@@ -8,6 +8,7 @@ import ProductSheet, { type ProductSearchResult } from './ProductSheet'
 import SettingsMenu from './SettingsMenu'
 import MyProducts from './MyProducts'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
+import { cropImageUrl } from './format'
 
 const CARTO_KEY = __CARTO_API_KEY__
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
@@ -27,6 +28,7 @@ interface Store {
   longitude: number
   name: string
   store_type: string
+  image_url?: string | null
   today_products_count: number
   today_opening_minute: number
   today_closing_minute: number
@@ -602,6 +604,14 @@ function App() {
                   className="store-popup"
                 >
                   <div className="store-popup-content">
+                    {store.image_url && (
+                      <img
+                        src={cropImageUrl(store.image_url, 640, 360)}
+                        alt=""
+                        loading="lazy"
+                        className="store-popup-image"
+                      />
+                    )}
                     <div className="store-popup-badges">
                       <span className="store-popup-badge store-popup-badge-type">
                         <span
