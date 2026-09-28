@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,15 +36,20 @@ async def claim_run(db: AsyncSession, run_key: str) -> bool:
 
 
 async def cleanup_old_products(db: AsyncSession, cutoff: datetime | None = None) -> int:
-    """Hard-delete products older than ``cutoff`` and free their ImageKit files.
+    """Soft-delete products older than ``cutoff`` and free their ImageKit files.
 
-    Returns the number of deleted products. Deleting rows is safe: nothing references
-    ``products``. ``delete_image`` is best-effort, so double-deletes are harmless.
+    Rows are kept (is_active=False) for history; images are deleted so ImageKit
+    does not accumulate orphaned files. Semantics mirror ``_clear_image``: the
+    image_url is cleared only when a real ImageKit file existed. Returns the
+    number of soft-deleted products.
     """
     cutoff = cutoff or cleanup_cutoff()
     rows = (await db.execute(select(Product).where(Product.creation_date < cutoff))).scalars().all()
     for product in rows:
-        await delete_image(product.image_file_id)
-    await db.execute(delete(Product).where(Product.id.in_([p.id for p in rows])))
+        if product.image_file_id:
+            await delete_image(product.image_file_id)
+            product.image_url = None
+        product.image_file_id = None
+        product.is_active = False
     await db.commit()
     return len(rows)
