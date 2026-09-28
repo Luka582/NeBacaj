@@ -93,11 +93,11 @@ export default function ProductSheet({
           aria-expanded={expanded}
           onPointerDown={beginDrag}
           onClick={() => setExpanded((v) => !v)}
-          className={`flex w-full touch-none flex-col items-center rounded-xl outline-none select-none active:bg-slate-100 ${
+          className={`flex w-full touch-none flex-col items-center rounded-xl outline-none select-none active:bg-brand-50 ${
             expanded ? 'py-4' : 'py-1'
           }`}
         >
-          <span className="h-1.5 w-12 rounded-full bg-slate-300" />
+          <span className="h-1.5 w-12 rounded-full bg-brand-200" />
         </button>
       </div>
 
@@ -111,7 +111,7 @@ export default function ProductSheet({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-brand-400"
             >
               <path d="m21 21-4.35-4.35" />
               <circle cx="11" cy="11" r="8" />
@@ -133,7 +133,7 @@ export default function ProductSheet({
                 if (focusedSearch.current === 'town') e.preventDefault()
               }}
               placeholder="Pretraži proizvode..."
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-9 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-full border border-slate-200 bg-white py-2.5 pr-9 pl-9 text-sm font-semibold text-slate-800 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
             />
             {hasQuery && (
               <button
@@ -163,7 +163,8 @@ export default function ProductSheet({
       <div
         onWheel={dismissKeyboard}
         onTouchMove={dismissKeyboard}
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3"
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
       >
         {loading ? (
           <>
@@ -190,7 +191,7 @@ export default function ProductSheet({
               type="button"
               {...tapHandlers(() => onSelect(r))}
               onClick={() => onSelect(r)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-blue-50 active:bg-blue-50"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-brand-50 active:bg-brand-50"
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-slate-900">{r.product_name}</p>
@@ -202,7 +203,12 @@ export default function ProductSheet({
               <div className="shrink-0 text-right">
                 <p className="text-sm font-bold text-red-600">{formatPrice(r.new_price)}</p>
                 {r.old_price > r.new_price && (
-                  <p className="text-xs text-slate-400 line-through">{formatPrice(r.old_price)}</p>
+                  <>
+                    <span className="mt-0.5 inline-block rounded-full bg-red-500 px-1.5 py-px text-[10px] font-bold text-white">
+                      −{Math.round((1 - r.new_price / r.old_price) * 100)}%
+                    </span>
+                    <p className="text-xs text-slate-400 line-through">{formatPrice(r.old_price)}</p>
+                  </>
                 )}
               </div>
             </button>

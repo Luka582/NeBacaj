@@ -51,25 +51,31 @@ const STORE_COLORS: Record<string, string> = {
   other: '#8b5cf6',
 }
 
+const BRAND_PIN = '#f97316'
+const PIN_DEAL_OPACITY = 0.95
+const PIN_DIM_OPACITY = 0.32
+
 const pinIconCache = new Map<string, L.DivIcon>()
 
-function makePinIcon(type: string, dim: boolean) {
-  const key = `${type}:${dim}`
+function makePinIcon(type: string, hasDeals: boolean, dim: boolean) {
+  const key = `${type}:${hasDeals}:${dim}`
   const cached = pinIconCache.get(key)
   if (cached) return cached
 
-  const color = STORE_COLORS[type] ?? '#6b7280'
-  const opacity = dim ? 0.35 : 0.9
+  const color = dim && !hasDeals ? '#78716c' : BRAND_PIN
+  const opacity = dim && !hasDeals ? PIN_DIM_OPACITY : PIN_DEAL_OPACITY
+  const inner = STORE_COLORS[type] ?? '#78716c'
 
   const icon = L.divIcon({
     className: '',
-    iconSize: [32, 44],
-    iconAnchor: [16, 44],
+    iconSize: [34, 46],
+    iconAnchor: [17, 46],
     html: `
-      <svg width="32" height="44" viewBox="0 0 32 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M16 0C7.163 0 0 7.163 0 16c0 12 16 28 16 28s16-16 16-28C32 7.163 24.837 0 16 0z"
+      <svg width="34" height="46" viewBox="0 0 34 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17 0C7.9 0 .5 7.4.5 16.5.5 29 17 46 17 46S33.5 29 33.5 16.5C33.5 7.4 26.1 0 17 0z"
               fill="${color}" fill-opacity="${opacity}" stroke="white" stroke-width="2"/>
-        <circle cx="16" cy="14" r="7" fill="white" fill-opacity="${opacity}"/>
+        <circle cx="17" cy="14.5" r="7.5" fill="white" fill-opacity="0.98"/>
+        <circle cx="17" cy="14.5" r="3.6" fill="${inner}"/>
       </svg>
     `,
   })
@@ -259,6 +265,21 @@ function App() {
   const [detailStoreId, setDetailStoreId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [myProductsOpen, setMyProductsOpen] = useState(false)
+  const [showHint, setShowHint] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('nebacajHintDismissed') !== '1'
+    } catch {
+      return true
+    }
+  })
+  const dismissHint = () => {
+    setShowHint(false)
+    try {
+      localStorage.setItem('nebacajHintDismissed', '1')
+    } catch {
+      return
+    }
+  }
   const markerRefs = useRef<Map<string, L.Marker>>(new Map())
   const [recentTowns, setRecentTowns] = useState<string[]>(() => {
     try {
@@ -418,7 +439,9 @@ function App() {
         const next = [town, ...prev.filter((t) => t !== town)].slice(0, 5)
         try {
           localStorage.setItem('recentTowns', JSON.stringify(next))
-        } catch {}
+        } catch {
+          return prev
+        }
         return next
       })
     }
@@ -533,10 +556,10 @@ function App() {
               center={userLocation}
               radius={locationRadius * 1000}
               pathOptions={{
-                color: '#3b82f6',
+                color: '#f97316',
                 weight: 2,
                 dashArray: '6 6',
-                fillColor: 'rgba(59, 130, 246, 0.08)',
+                fillColor: 'rgba(249, 115, 22, 0.08)',
                 fillOpacity: 1,
               }}
             />
@@ -551,7 +574,7 @@ function App() {
             <Marker
               key={store.id}
               position={[store.latitude, store.longitude]}
-              icon={makePinIcon(store.store_type, dim)}
+              icon={makePinIcon(store.store_type, !dim, dim)}
               zIndexOffset={selected ? 500 : 0}
               ref={(marker) => {
                 if (marker) markerRefs.current.set(store.id, marker)
@@ -614,7 +637,7 @@ function App() {
                     </div>
                     <button
                       type="button"
-                      className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white active:bg-blue-700"
+                      className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700"
                       onPointerDown={() => {
                         setDetailStoreId(store.id)
                         setSelectedStoreId(null)
@@ -632,18 +655,40 @@ function App() {
 
 <div className="pointer-events-auto absolute top-4 left-16 right-16 z-[1000] sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2">
         <div className="relative w-full max-w-sm sm:w-96">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-slate-400"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label="Očisti pretragu"
+              className="absolute top-1/2 right-2.5 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-slate-200/80 text-slate-600 active:bg-slate-300"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          ) : (
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-brand-400"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+          )}
           <input
             ref={inputRef}
             id="town-search"
@@ -663,8 +708,8 @@ function App() {
             onPointerDown={(e) => {
               if (focusedSearch.current === 'product') e.preventDefault()
             }}
-            placeholder="Unesi naziv grada..."
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-10 pl-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            placeholder="Pronađi grad..."
+            className="w-full rounded-full border border-slate-200 bg-white py-2.5 pr-10 pl-4 text-sm font-semibold text-slate-800 shadow-lg shadow-slate-900/5 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
           />
         </div>
 
@@ -689,7 +734,9 @@ function App() {
         type="button"
         onClick={handleUseMyLocation}
         title="Koristi moju lokaciju"
-        className="absolute top-4 right-4 z-[1001] flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-blue-600 shadow-lg backdrop-blur transition hover:bg-blue-50 active:scale-95"
+        className={`absolute top-4 right-4 z-[1001] flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 shadow-lg backdrop-blur transition active:scale-95 ${
+          userLocation ? 'text-brand-600 ring-2 ring-brand-200 hover:bg-brand-50' : 'text-slate-600 hover:bg-brand-50'
+        }`}
       >
         <svg
           viewBox="0 0 24 24"
@@ -709,7 +756,7 @@ function App() {
         onClick={() => setSettingsOpen(true)}
         title="Podešavanja"
         aria-label="Podešavanja"
-        className="absolute top-4 left-4 z-[1001] flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-slate-600 shadow-lg backdrop-blur transition hover:bg-blue-50 active:scale-95"
+        className="absolute top-4 left-4 z-[1001] flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-slate-600 shadow-lg backdrop-blur transition hover:bg-brand-50 active:scale-95"
       >
         <svg
           viewBox="0 0 24 24"
@@ -779,7 +826,7 @@ function App() {
                   setInputFocused(false)
                 }}
                 placeholder="Unesi naziv grada..."
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-3 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-full border border-slate-200 bg-white py-2.5 pr-3 pl-9 text-sm font-semibold text-slate-800 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
               />
             </div>
           </div>
@@ -793,7 +840,7 @@ function App() {
                 type="button"
                 {...tapHandlers(() => selectTown('Sve'))}
                 onClick={() => selectTown('Sve')}
-                className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-blue-50 active:bg-blue-50"
+                className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-brand-50 active:bg-brand-50"
               >
                 Svi gradovi
               </button>
@@ -811,7 +858,7 @@ function App() {
                         type="button"
                         {...tapHandlers(() => selectTown(t))}
                         onClick={() => selectTown(t)}
-                        className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 active:bg-blue-50"
+                        className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-brand-600 hover:bg-brand-50 active:bg-brand-50"
                       >
                         {t}
                       </button>
@@ -830,7 +877,7 @@ function App() {
                       type="button"
                       {...tapHandlers(() => selectTown(t))}
                       onClick={() => selectTown(t)}
-                      className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-blue-50 active:bg-blue-50"
+                      className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-brand-50 active:bg-brand-50"
                     >
                       {t}
                     </button>
@@ -838,6 +885,94 @@ function App() {
                 ))
             )}
           </ul>
+        </div>
+      )}
+      {showHint && !townSearchOpen && !inputFocused && productSearchQuery.length === 0 && (
+        <div className="pointer-events-auto absolute top-20 left-1/2 z-[1002] w-[calc(100%-1.5rem)] max-w-sm -translate-x-1/2 sm:w-96">
+          <div className="rounded-2xl bg-white/95 p-3.5 shadow-xl ring-1 ring-slate-900/5 backdrop-blur">
+            <div className="flex items-center gap-2.5">
+              <img src="/favicon.svg" alt="" className="h-9 w-9 shrink-0" />
+              <p className="text-sm leading-tight font-extrabold text-slate-900">Najbolja cena je blizu tebe.</p>
+              <button
+                type="button"
+                onClick={dismissHint}
+                aria-label="Zatvori"
+                className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 active:bg-slate-100"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Pronađi grad, istraži cene i sačuvaj ono što vredi — pre nego što nestane.
+            </p>
+            <div className="mt-2.5 flex gap-2">
+              <button
+                type="button"
+                {...tapHandlers(() => {
+                  setSearchQuery('')
+                  setTownSearchOpen(true)
+                  setInputFocused(true)
+                })}
+                onClick={() => {
+                  setSearchQuery('')
+                  setTownSearchOpen(true)
+                  setInputFocused(true)
+                }}
+                className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 text-xs font-bold text-slate-700 active:bg-slate-200"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3.5 w-3.5"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+                Pronađi grad
+              </button>
+              <button
+                type="button"
+                {...tapHandlers(() => {
+                  dismissHint()
+                  handleUseMyLocation()
+                })}
+                onClick={() => {
+                  dismissHint()
+                  handleUseMyLocation()
+                }}
+                className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-brand-600 text-xs font-bold text-white active:bg-brand-700"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3.5 w-3.5"
+                >
+                  <path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z" />
+                  <circle cx="12" cy="10" r="2.5" />
+                </svg>
+                Moja lokacija
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {!townSearchOpen && (

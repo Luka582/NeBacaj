@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path d="M32 6C23.16 6 16 13.16 16 22c0 12 16 28 16 28s16-16 16-28C48 13.16 40.84 6 32 6z" fill="#f97316"/>
+  <circle cx="32" cy="20" r="7" fill="#fff"/>
+  <text x="32" y="23.4" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8.5" font-weight="800" fill="#f97316">%</text>
+</svg>

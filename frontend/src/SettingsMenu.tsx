@@ -18,6 +18,51 @@ function translateDetail(detail: string): string {
   return ERROR_TRANSLATIONS[detail] ?? detail
 }
 
+function PasswordInput({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <div className="relative">
+      <input {...props} type={visible ? 'text' : 'password'} className={`${className ?? ''} pr-11`} />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? 'Sakrij lozinku' : 'Prikaži lozinku'}
+        className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 active:bg-brand-50 active:text-brand-600"
+      >
+        {visible ? (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5"
+          >
+            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+            <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+            <line x1="2" x2="22" y1="2" y2="22" />
+          </svg>
+        ) : (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5"
+          >
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        )}
+      </button>
+    </div>
+  )
+}
+
 interface SettingsMenuProps {
   onClose: () => void
   onOpenMyProducts: () => void
@@ -234,7 +279,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
   }
 
   const inputClass =
-    'w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100'
+    'w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100'
 
   return (
     <div className="fixed inset-x-0 top-0 z-[1500] flex flex-col bg-white" style={{ height: vh }}>
@@ -258,7 +303,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
             <path d="m12 19-7-7 7-7" />
           </svg>
         </button>
-        <span className="min-w-0 flex-1 truncate text-center text-lg leading-tight font-extrabold tracking-tight text-blue-600">
+        <span className="min-w-0 flex-1 truncate text-center text-lg leading-tight font-extrabold tracking-tight text-brand-600">
           NeBacaj
         </span>
         <span className="w-10 shrink-0" />
@@ -275,24 +320,21 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
             <p className="text-xs text-slate-500">
               Privremena lozinka se mora promeniti pri prvoj prijavi.
             </p>
-            <input
-              type="password"
+            <PasswordInput
               value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
               placeholder="Trenutna lozinka"
               autoComplete="current-password"
               className={inputClass}
             />
-            <input
-              type="password"
+            <PasswordInput
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Nova lozinka (min. 8 karaktera)"
               autoComplete="new-password"
               className={inputClass}
             />
-            <input
-              type="password"
+            <PasswordInput
               value={repeatPassword}
               onChange={(e) => setRepeatPassword(e.target.value)}
               placeholder="Ponovite novu lozinku"
@@ -304,7 +346,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
               <button
                 type="button"
                 onClick={startRecovery}
-                className="w-full text-sm text-blue-600 underline"
+                className="w-full text-sm text-brand-600 underline"
               >
                 Zaboravili ste lozinku?
               </button>
@@ -312,7 +354,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
             <button
               type="submit"
               disabled={busy}
-              className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white active:bg-blue-700 disabled:opacity-50"
+              className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
             >
               Promeni lozinku
             </button>
@@ -326,7 +368,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
             <button
               type="button"
               onClick={onOpenMyProducts}
-              className="w-full rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white active:bg-blue-700"
+              className="w-full rounded-lg bg-brand-600 py-3 text-sm font-semibold text-white active:bg-brand-700"
             >
               Moji proizvodi
             </button>
@@ -368,7 +410,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white active:bg-blue-700 disabled:opacity-50"
+                  className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
                 >
                   Pošalji kôd
                 </button>
@@ -387,16 +429,14 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
                   autoComplete="one-time-code"
                   className={inputClass}
                 />
-                <input
-                  type="password"
+                <PasswordInput
                   value={recoveryNewPassword}
                   onChange={(e) => setRecoveryNewPassword(e.target.value)}
                   placeholder="Nova lozinka (min. 8 karaktera)"
                   autoComplete="new-password"
                   className={inputClass}
                 />
-                <input
-                  type="password"
+                <PasswordInput
                   value={recoveryRepeat}
                   onChange={(e) => setRecoveryRepeat(e.target.value)}
                   placeholder="Ponovite novu lozinku"
@@ -407,7 +447,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white active:bg-blue-700 disabled:opacity-50"
+                  className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
                 >
                   Poništi lozinku
                 </button>
@@ -436,8 +476,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
               autoComplete="email"
               className={inputClass}
             />
-            <input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Lozinka"
@@ -448,7 +487,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
             <button
               type="submit"
               disabled={busy}
-              className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white active:bg-blue-700 disabled:opacity-50"
+              className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
             >
               Prijavi se
             </button>
@@ -456,7 +495,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
               <button
                 type="button"
                 onClick={startRecovery}
-                className="w-full text-sm text-blue-600 underline"
+                className="w-full text-sm text-brand-600 underline"
               >
                 Zaboravili ste lozinku?
               </button>
@@ -469,7 +508,7 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
           <h2 className="text-sm font-bold text-slate-900">Pomoć i kontakt</h2>
           <a
             href={`mailto:${SUPPORT_EMAIL}`}
-            className="mt-2 inline-flex items-center gap-2 text-sm text-blue-600"
+            className="mt-2 inline-flex items-center gap-2 text-sm text-brand-600"
           >
             <svg
               viewBox="0 0 24 24"

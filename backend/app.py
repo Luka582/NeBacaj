@@ -68,7 +68,7 @@ async def lifespan(_: FastAPI):
             cutoff = cleanup_cutoff()
             deleted = await cleanup_old_products(db, cutoff)
             print(
-                f"[maintenance] {run_key}: deleted {deleted} products older than "
+                f"[maintenance] {run_key}: soft-deleted {deleted} products older than "
                 f"{cutoff:%Y-%m-%d %H:%M}"
             )
 
