@@ -129,6 +129,13 @@ class RecoveryCode(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
 
 
+class MaintenanceRun(Base):
+    __tablename__ = "maintenance_runs"
+
+    run_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ran_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
+
+
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
