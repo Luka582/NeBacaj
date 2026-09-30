@@ -619,53 +619,59 @@ function App() {
         }`}
       >
         <div className="relative w-full max-w-sm sm:w-96">
-          {townSearchOpen && (
-            <>
-              <div className="fixed inset-0 z-[1599]" onClick={() => setTownSearchOpen(false)} />
-              <div className="absolute inset-x-0 top-full z-[1600] mt-1.5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10">
-                <ul
-                  role="listbox"
-                  onWheel={dismissKeyboard}
-                  onTouchMove={dismissKeyboard}
-                  className="divide-y divide-slate-100 overflow-y-auto overscroll-contain py-1"
-                  style={{ maxHeight: `${townListMaxHeight}px` }}
-                >
-                  {hasRecentTowns && (
-                    <>
-                      {recentTowns
-                        .filter((t) => towns.includes(t))
-                        .map((t) => (
-                          <li key={t}>
-                            <button
-                              type="button"
-                              {...tapHandlers(() => selectTown(t))}
-                              onClick={() => selectTown(t)}
-                              className="w-full px-4 py-3 text-left text-sm font-medium text-brand-600 hover:bg-brand-50 active:bg-brand-50"
-                            >
-                              {t}
-                            </button>
-                          </li>
-                        ))}
-                    </>
-                  )}
-                  {towns
-                    .filter((t) => !recentTowns.includes(t))
+          <div
+            className={`fixed inset-0 z-[1599] transition-opacity duration-300 ${
+              townSearchOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+            }`}
+            onClick={() => setTownSearchOpen(false)}
+          />
+          <div
+            className={`pointer-events-none absolute inset-x-0 top-full z-[1600] mt-1.5 overflow-hidden rounded-2xl border border-slate-200 bg-white opacity-0 shadow-2xl shadow-slate-900/10 transition-[max-height,opacity] duration-300 ease-out ${
+              townSearchOpen ? 'pointer-events-auto opacity-100' : ''
+            }`}
+            style={{ maxHeight: townSearchOpen ? `${townListMaxHeight + 2}px` : '0px' }}
+          >
+            <ul
+              role="listbox"
+              onWheel={dismissKeyboard}
+              onTouchMove={dismissKeyboard}
+              className="divide-y divide-slate-100 overflow-y-auto overscroll-contain py-1"
+              style={{ maxHeight: `${townListMaxHeight}px` }}
+            >
+              {hasRecentTowns && (
+                <>
+                  {recentTowns
+                    .filter((t) => towns.includes(t))
                     .map((t) => (
                       <li key={t}>
                         <button
                           type="button"
                           {...tapHandlers(() => selectTown(t))}
                           onClick={() => selectTown(t)}
-                          className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-brand-50 active:bg-brand-50"
+                          className="w-full px-4 py-3 text-left text-sm font-medium text-brand-600 hover:bg-brand-50 active:bg-brand-50"
                         >
                           {t}
                         </button>
                       </li>
                     ))}
-                </ul>
-              </div>
-            </>
-          )}
+                </>
+              )}
+              {towns
+                .filter((t) => !recentTowns.includes(t))
+                .map((t) => (
+                  <li key={t}>
+                    <button
+                      type="button"
+                      {...tapHandlers(() => selectTown(t))}
+                      onClick={() => selectTown(t)}
+                      className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-brand-50 active:bg-brand-50"
+                    >
+                      {t}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </div>
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -673,7 +679,9 @@ function App() {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="pointer-events-none absolute top-1/2 right-3 z-[1900] h-5 w-5 -translate-y-1/2 text-brand-400"
+            className={`pointer-events-none absolute top-1/2 right-3 z-[1900] h-5 w-5 -translate-y-1/2 text-brand-400 transition-transform duration-300 ${
+              townSearchOpen ? 'rotate-180' : ''
+            }`}
           >
             <path d="m6 9 6 6 6-6" />
           </svg>
