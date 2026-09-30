@@ -162,6 +162,12 @@ def _active_shift(store: Store, today: int, current_minutes: int) -> tuple[int, 
     return None
 
 
+def _require_store_open(store: Store) -> None:
+    reference = now_serbia()
+    if _active_shift(store, reference.weekday(), reference.hour * 60 + reference.minute) is None:
+        raise HTTPException(status_code=409, detail="Store is closed")
+
+
 def _shift_window(store: Store, reference: datetime) -> tuple[datetime, datetime] | None:
     """Return the (start, end) datetimes of the store's currently active shift, or None if closed."""
     today = reference.weekday()
@@ -788,7 +794,8 @@ async def create_product(
     """POST /products — create a product in a store the current user manages."""
     body = _parse_form_json(data, ProductCreate)
     _ensure_store_access(user, body.store_id)
-    await _get_store_or_404(body.store_id, db)
+    store = await _get_store_or_404(body.store_id, db)
+    _require_store_open(store)
     product = Product(**body.model_dump(exclude={"image_url"}))
     db.add(product)
     await db.flush()
@@ -808,6 +815,8 @@ async def update_product(
     """PUT /products/{id} — update a product (admin, or the worker managing its store)."""
     product = await _get_product_or_404(product_id, db)
     _ensure_store_access(user, product.store_id)
+    store = await _get_store_or_404(product.store_id, db)
+    _require_store_open(store)
     body = _parse_form_json(data, ProductUpdate)
     fields = body.model_dump(exclude_unset=True)
     image_url_set = "image_url" in fields
@@ -850,6 +859,8 @@ async def reactivate_product(
     """
     product = await _get_product_or_404(product_id, db)
     _ensure_store_access(user, product.store_id)
+    store = await _get_store_or_404(product.store_id, db)
+    _require_store_open(store)
     product.is_active = True
     product.creation_date = now_serbia()
     product.expiration_date = None

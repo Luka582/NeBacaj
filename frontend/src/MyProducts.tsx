@@ -28,6 +28,7 @@ const API_ERRORS: Record<string, string> = {
   'Not authenticated': 'Niste prijavljeni.',
   'Invalid or expired token': 'Sesija je istekla, prijavite se ponovo.',
   'Store not found': 'Prodavnica nije pronađena.',
+  'Store is closed': 'Prodavnica je trenutno zatvorena. Proizvode možete menjati dok je prodavnica otvorena.',
   'Product not found': 'Proizvod nije pronađen.',
   'Uploaded file must be an image': 'Dodati fajl mora biti slika.',
   'Image too large (max 10 MB)': 'Slika je prevelika (maks. 10 MB).',
