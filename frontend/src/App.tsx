@@ -929,11 +929,6 @@ function App() {
             <div className="mt-2.5 flex gap-2">
               <button
                 type="button"
-                {...tapHandlers(() => {
-                  setSearchQuery('')
-                  setTownSearchOpen(true)
-                  setInputFocused(true)
-                })}
                 onClick={() => {
                   setSearchQuery('')
                   setTownSearchOpen(true)
@@ -957,10 +952,6 @@ function App() {
               </button>
               <button
                 type="button"
-                {...tapHandlers(() => {
-                  dismissHint()
-                  handleUseMyLocation()
-                })}
                 onClick={() => {
                   dismissHint()
                   handleUseMyLocation()
