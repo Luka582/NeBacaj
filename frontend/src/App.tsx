@@ -391,6 +391,7 @@ function App() {
       })
       .then((data: Store[]) => setStores(data))
       .catch((err) => setError(err.message))
+    setInvalidateSignal((n) => n + 1)
   }
 
   const towns = Array.from(new Set(stores.map((s) => s.town))).sort()
@@ -530,7 +531,7 @@ function App() {
       q ? 300 : 0,
     )
     return () => window.clearTimeout(timer)
-  }, [productSearchQuery, selectedTown, userLocation])
+  }, [productSearchQuery, selectedTown, userLocation, invalidateSignal])
 
   function openProductFromSearch(result: ProductSearchResult) {
     requestSeq.current += 1
