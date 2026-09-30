@@ -44,7 +44,7 @@ button {
 }
 
 button:not(:disabled):active {
-  transform: scale(0.97);
+  scale: 0.97;
 }
 
 .store-popup .leaflet-popup-content-wrapper {

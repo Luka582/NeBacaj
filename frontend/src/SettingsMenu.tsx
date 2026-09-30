@@ -22,12 +22,13 @@ function PasswordInput({ className, ...props }: React.InputHTMLAttributes<HTMLIn
   const [visible, setVisible] = useState(false)
   return (
     <div className="relative">
-      <input {...props} type={visible ? 'text' : 'password'} className={`${className ?? ''} pr-11`} />
+      <input {...props} type={visible ? 'text' : 'password'} className={`${className ?? ''} pr-12`} />
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
+        onMouseDown={(e) => e.preventDefault()}
         aria-label={visible ? 'Sakrij lozinku' : 'Prikaži lozinku'}
-        className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 active:bg-brand-50 active:text-brand-600"
+        className="absolute top-1/2 right-1 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 active:bg-brand-50 active:text-brand-600"
       >
         {visible ? (
           <svg
