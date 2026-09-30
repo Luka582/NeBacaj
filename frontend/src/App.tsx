@@ -4,7 +4,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import StoreDetail from './StoreDetail'
 import ProductDetail from './ProductDetail'
-import ProductSheet, { type ProductSearchResult } from './ProductSheet'
+import ProductSheet, { type ProductSearchResult, SIDE_PANEL_WIDTH } from './ProductSheet'
 import SettingsMenu from './SettingsMenu'
 import MyProducts from './MyProducts'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
@@ -103,6 +103,9 @@ const FIT_WIDTH_RATIO = 0.9
 
 function fitBoundsInBand(map: L.Map, bounds: [[number, number], [number, number]], widthRatio = FIT_WIDTH_RATIO) {
   const size = map.getSize()
+  const isDesktop = size.x >= 768
+  const panelW = isDesktop ? SIDE_PANEL_WIDTH : 0
+  const availW = size.x - panelW
   const sw = bounds[0]
   const ne = bounds[1]
   const latC = (sw[0] + ne[0]) / 2
@@ -112,12 +115,15 @@ function fitBoundsInBand(map: L.Map, bounds: [[number, number], [number, number]
   if (lngSpan <= 1e-6) {
     zoom = Math.max(map.getZoom(), 14)
   } else {
-    zoom = Math.log2((widthRatio * size.x * 360) / (256 * lngSpan))
+    zoom = Math.log2((widthRatio * availW * 360) / (256 * lngSpan))
   }
   zoom = Math.min(Math.max(zoom, map.getMinZoom()), map.getMaxZoom())
-  const bandMiddlePx = (TOWN_FIELD_BOTTOM + (size.y - PEEK_HEIGHT)) / 2
+  const bandTop = TOWN_FIELD_BOTTOM
+  const bandBottom = isDesktop ? size.y : size.y - PEEK_HEIGHT
+  const bandMiddlePx = (bandTop + bandBottom) / 2
+  const cx = isDesktop ? (size.x - panelW) / 2 : size.x / 2
   const c = map.project([latC, lngC], zoom)
-  const center = map.unproject([c.x, c.y + (size.y / 2 - bandMiddlePx)], zoom)
+  const center = map.unproject([c.x + (size.x / 2 - cx), c.y + (size.y / 2 - bandMiddlePx)], zoom)
   map.setView(center, zoom)
 }
 
@@ -143,12 +149,16 @@ function MapController({
       fitBoundsInBand(map, bounds, 0.2)
     } else if (request.type === 'focus') {
       const size = map.getSize()
+      const offsetX = size.x >= 768 ? SIDE_PANEL_WIDTH / 2 : 0
       const pt = map.project([request.lat, request.lng], map.getZoom())
       const targetTop = Math.min(470, Math.max(120, size.y - 100))
-      const center = map.unproject([pt.x, pt.y - (targetTop - size.y / 2)], map.getZoom())
+      const center = map.unproject([pt.x + offsetX, pt.y - (targetTop - size.y / 2)], map.getZoom())
       map.panTo(center, { animate: true })
     } else if (request.type === 'store') {
-      map.setView([request.lat, request.lng], Math.max(map.getZoom(), 13))
+      const zoom = Math.max(map.getZoom(), 13)
+      const pt = map.project([request.lat, request.lng], zoom)
+      const offsetX = map.getSize().x >= 768 ? SIDE_PANEL_WIDTH / 2 : 0
+      map.setView(map.unproject([pt.x + offsetX, pt.y], zoom), zoom)
     } else {
       fitBoundsInBand(map, request.bounds)
     }

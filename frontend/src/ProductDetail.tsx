@@ -57,8 +57,9 @@ function ProductDetail({
 
   return (
     <div className="fixed inset-0 z-[3000] flex flex-col overflow-y-auto overscroll-contain bg-white">
-      <header className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 backdrop-blur">
+        <div className="mx-auto w-full max-w-lg px-4 py-3 md:max-w-2xl">
+          <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onBack}
@@ -114,9 +115,10 @@ function ProductDetail({
             </button>
           )}
         </div>
+      </div>
       </header>
 
-      <div className="mx-auto w-full max-w-lg flex-1 px-4" style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="mx-auto w-full max-w-lg flex-1 px-4 md:max-w-2xl" style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}>
         {loading && (
           <div className="flex flex-col items-center gap-3 pt-10">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
@@ -143,7 +145,7 @@ function ProductDetail({
               <img
                 src={cropImageUrl(product.image_url, 800, 800)}
                 alt={product.name}
-                className="mt-4 aspect-square w-full rounded-2xl object-cover"
+                className="mt-4 aspect-square w-full rounded-2xl object-cover md:mx-auto md:max-w-[560px]"
                 loading="lazy"
               />
             )}
