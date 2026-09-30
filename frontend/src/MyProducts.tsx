@@ -395,10 +395,6 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
 
   async function ensureStoreId(s: Session): Promise<string | null> {
     if (storeIdRef.current) return storeIdRef.current
-    if (s.store_id) {
-      storeIdRef.current = s.store_id
-      return s.store_id
-    }
     const res = await fetch('/api/auth/me', { headers: bearer(s.token) })
     if (res.status === 401) {
       clearSession()
@@ -409,8 +405,11 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
     const me = (await res.json()) as { store_id: string | null }
     if (!me.store_id) throw new Error('Nalog nije povezan ni sa jednom prodavnicom.')
     storeIdRef.current = me.store_id
-    saveSession({ ...s, store_id: me.store_id })
-    setSession({ ...s, store_id: me.store_id })
+    const updated: Session = { ...s, store_id: me.store_id }
+    if (s.store_id !== me.store_id) {
+      saveSession(updated)
+      setSession(updated)
+    }
     return me.store_id
   }
 
