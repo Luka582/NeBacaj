@@ -111,8 +111,10 @@ function MapController({
         [request.lat + request.radiusKm / 111, request.lng + request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
       ])
     } else if (request.type === 'focus') {
+      const size = map.getSize()
       const pt = map.project([request.lat, request.lng], map.getZoom())
-      const center = map.unproject([pt.x, pt.y - map.getSize().y * 0.07], map.getZoom())
+      const targetTop = Math.min(470, Math.max(120, size.y - 100))
+      const center = map.unproject([pt.x, pt.y - (targetTop - size.y / 2)], map.getZoom())
       map.panTo(center, { animate: true })
     } else if (request.type === 'store') {
       map.setView([request.lat, request.lng], Math.max(map.getZoom(), 13))
