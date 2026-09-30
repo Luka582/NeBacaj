@@ -224,8 +224,6 @@ function App() {
   const [radius, setRadius] = useState(50)
   const [locationRadius, setLocationRadius] = useState(0.5)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
-  const [locationWarning, setLocationWarning] = useState<string | null>(null)
-  const [warningLeaving, setWarningLeaving] = useState(false)
   const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
   const [detailStoreId, setDetailStoreId] = useState<string | null>(null)
@@ -405,8 +403,9 @@ function App() {
   const nowMinutes = getSerbiaMinutes()
 
   function handleUseMyLocation() {
+    const fallback = () => fitToTown(selectedTown)
     if (!navigator.geolocation) {
-      showLocationWarning('Lokacija nije omogućena u ovom pregledaču')
+      fallback()
       return
     }
     navigator.geolocation.getCurrentPosition(
@@ -434,19 +433,9 @@ function App() {
           })
           .catch(() => {})
       },
-      () => showLocationWarning('Lokacija nije omogućena'),
+      fallback,
       { timeout: 8000, maximumAge: 60000, enableHighAccuracy: false },
     )
-  }
-
-  function showLocationWarning(msg: string) {
-    setWarningLeaving(false)
-    setLocationWarning(msg)
-    window.setTimeout(() => setWarningLeaving(true), 1500)
-    window.setTimeout(() => {
-      setLocationWarning(null)
-      setWarningLeaving(false)
-    }, 2000)
   }
 
   useEffect(() => {
@@ -640,20 +629,6 @@ function App() {
         </div>
 
         {error && <p className="mt-1 text-center text-sm text-red-500">{error}</p>}
-        {locationWarning && (
-          <p
-            className={`pointer-events-none fixed top-20 left-1/2 z-[1002] -translate-x-1/2 whitespace-nowrap rounded-lg bg-red-500 px-3 py-1 text-sm font-medium text-white shadow-lg transition-opacity duration-500 sm:hidden ${warningLeaving ? 'opacity-0' : 'opacity-100'}`}
-          >
-            {locationWarning}
-          </p>
-        )}
-        {locationWarning && (
-          <p
-            className={`pointer-events-none absolute top-1/2 left-1/2 z-[1001] hidden -translate-x-1/2 translate-y-full whitespace-nowrap rounded-lg bg-red-500 px-3 py-1 text-sm font-medium text-white shadow-lg transition-opacity duration-500 sm:block ${warningLeaving ? 'opacity-0' : 'opacity-100'}`}
-          >
-            {locationWarning}
-          </p>
-        )}
       </div>
 
       <button
@@ -802,6 +777,7 @@ function App() {
               <button
                 type="button"
                 onClick={() => {
+                  dismissHint()
                   setTownSearchOpen(true)
                 }}
                 className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 text-xs font-bold text-slate-700 active:bg-slate-200"
