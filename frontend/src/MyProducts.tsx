@@ -179,6 +179,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
   const [filePreview, setFilePreview] = useState<string | null>(null)
   const [cameraOpen, setCameraOpen] = useState(false)
   const [removeImage, setRemoveImage] = useState(false)
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
   const [loading, setLoading] = useState(mode !== 'create')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -403,23 +404,62 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
         </div>
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-500">Slika</label>
-          {imageUrl && !file && !removeImage && (
+          {imageUrl && !file && (
             <div className="mb-2 flex flex-col gap-2">
-              <img
-                src={cropImageUrl(imageUrl, 960, 540)}
-                alt=""
-                className="w-full rounded-xl object-cover"
-                style={{ aspectRatio: '16 / 9' }}
-              />
-              <label className="flex items-center gap-2 text-xs text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={removeImage}
-                  onChange={(e) => setRemoveImage(e.target.checked)}
-                  className="h-4 w-4 accent-blue-600"
-                />
-                Ukloni trenutnu sliku
-              </label>
+              {removeImage ? (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-3">
+                  <span className="text-xs font-medium text-red-600">
+                    Slika će biti uklonjena kada sačuvate izmene.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRemoveImage(false)}
+                    className="shrink-0 text-xs font-semibold text-red-600 underline"
+                  >
+                    Poništi
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <img
+                    src={cropImageUrl(imageUrl, 960, 540)}
+                    alt=""
+                    className="w-full rounded-xl object-cover"
+                    style={{ aspectRatio: '16 / 9' }}
+                  />
+                  <label className="flex w-full cursor-pointer select-none items-center gap-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 active:bg-red-100">
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                        removeImage
+                          ? 'border-red-500 bg-red-500 text-white'
+                          : 'border-red-300 bg-white text-transparent'
+                      }`}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-3.5 w-3.5"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm font-semibold text-red-600">Ukloni trenutnu sliku</span>
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={removeImage}
+                      onChange={() => {
+                        if (!removeImage) setConfirmRemoveOpen(true)
+                        else setRemoveImage(false)
+                      }}
+                    />
+                  </label>
+                </>
+              )}
             </div>
           )}
           <div className="mt-1 flex gap-2">
@@ -445,6 +485,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null
                   setFile(f)
+                  if (f) setRemoveImage(false)
                   e.target.value = ''
                 }}
                 className="hidden"
@@ -516,10 +557,39 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
         <CameraCapture
           onCapture={(f) => {
             setFile(f)
+            setRemoveImage(false)
             setCameraOpen(false)
           }}
           onClose={() => setCameraOpen(false)}
         />
+      )}
+      {confirmRemoveOpen && (
+        <div className="fixed inset-0 z-[2300] flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmRemoveOpen(false)} />
+          <div className="relative w-full max-w-sm rounded-t-2xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:rounded-2xl">
+            <h2 className="text-base font-bold text-slate-900">Ukloniti sliku?</h2>
+            <p className="mt-1 text-sm text-slate-600">Slika proizvoda će biti uklonjena kada sačuvate izmene.</p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmRemoveOpen(false)}
+                className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 active:bg-slate-50"
+              >
+                Otkaži
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRemoveImage(true)
+                  setConfirmRemoveOpen(false)
+                }}
+                className="flex-1 rounded-lg bg-red-500 py-2.5 text-sm font-semibold text-white active:bg-red-600"
+              >
+                Ukloni
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
