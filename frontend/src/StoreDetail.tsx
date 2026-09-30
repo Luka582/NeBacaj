@@ -80,7 +80,15 @@ const DAY_ROWS: { label: string; open: MinutesKey; work: MinutesKey }[] = [
   { label: 'Nedelja', open: 'opening_minute_sun', work: 'working_minutes_sun' },
 ]
 
-function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => void }) {
+function StoreDetail({
+  storeId,
+  onClose,
+  onViewStore,
+}: {
+  storeId: string
+  onClose: () => void
+  onViewStore?: (storeId: string) => void
+}) {
   const [store, setStore] = useState<StoreDetailData | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [error, setError] = useState(false)
@@ -440,7 +448,10 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
           productId={productDetailId}
           storeName={store.name}
           onBack={() => setProductDetailId(null)}
-          onViewStore={() => setProductDetailId(null)}
+          onViewStore={(storeId) => {
+            setProductDetailId(null)
+            onViewStore?.(storeId)
+          }}
         />
       )}
     </div>

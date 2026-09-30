@@ -34,6 +34,8 @@ interface ProductSheetProps {
   focusedSearch: { current: 'town' | 'product' | null }
   onSearchFocused: (focused: boolean) => void
   onTownDropdown: (open: boolean) => void
+  expanded: boolean
+  onExpandedChange: (expanded: boolean) => void
 }
 
 export default function ProductSheet({
@@ -46,8 +48,9 @@ export default function ProductSheet({
   focusedSearch,
   onSearchFocused,
   onTownDropdown,
+  expanded,
+  onExpandedChange,
 }: ProductSheetProps) {
-  const [expanded, setExpanded] = useState(false)
   const [dragHeight, setDragHeight] = useState<number | null>(null)
   const [vh] = useState(() => window.innerHeight)
   const dragRef = useRef<{ startY: number; wasExpanded: boolean } | null>(null)
@@ -74,9 +77,9 @@ export default function ProductSheet({
       const start = dragRef.current
       if (start) {
         const delta = start.startY - ev.clientY
-        if (delta > SNAP_DRAG_DISTANCE) setExpanded(true)
-        else if (delta < -SNAP_DRAG_DISTANCE) setExpanded(false)
-        else setExpanded(start.wasExpanded)
+        if (delta > SNAP_DRAG_DISTANCE) onExpandedChange(true)
+        else if (delta < -SNAP_DRAG_DISTANCE) onExpandedChange(false)
+        else onExpandedChange(start.wasExpanded)
       }
       dragRef.current = null
       setDragHeight(null)
@@ -243,7 +246,7 @@ export default function ProductSheet({
             type="button"
             aria-expanded={expanded}
             onPointerDown={beginDrag}
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => onExpandedChange(!expanded)}
             className={`flex w-full touch-none flex-col items-center rounded-xl outline-none select-none active:bg-brand-50 ${
               expanded ? 'py-4' : 'py-1'
             }`}

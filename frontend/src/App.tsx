@@ -289,6 +289,7 @@ function App() {
   const [productSearchLoading, setProductSearchLoading] = useState(false)
   const [productSearchError, setProductSearchError] = useState(false)
   const [searchProductOpen, setSearchProductOpen] = useState<SearchProductOpen | null>(null)
+  const [sheetExpanded, setSheetExpanded] = useState(false)
   const [invalidateSignal, setInvalidateSignal] = useState(0)
   const prevDetailOpen = useRef(false)
 
@@ -494,6 +495,20 @@ function App() {
     requestSeq.current += 1
     setMapRequest({ seq: requestSeq.current, type: 'store', lat: result.latitude, lng: result.longitude })
     setSearchProductOpen({ productId: result.product_id, storeName: result.store_name })
+  }
+
+  function openStorePopup(storeId: string) {
+    setDetailStoreId(null)
+    setSearchProductOpen(null)
+    setSheetExpanded(false)
+    const s = stores.find((st) => st.id === storeId)
+    if (s) {
+      setSelectedStoreId(storeId)
+      requestSeq.current += 1
+      setMapRequest({ seq: requestSeq.current, type: 'focus', lat: s.latitude, lng: s.longitude })
+    } else {
+      setDetailStoreId(storeId)
+    }
   }
 
   return (
@@ -838,8 +853,10 @@ function App() {
         focusedSearch={focusedSearch}
         onSearchFocused={setInputFocused}
         onTownDropdown={setTownSearchOpen}
+        expanded={sheetExpanded}
+        onExpandedChange={setSheetExpanded}
       />
-      {detailStoreId && <StoreDetail storeId={detailStoreId} onClose={() => setDetailStoreId(null)} />}
+      {detailStoreId && <StoreDetail storeId={detailStoreId} onClose={() => setDetailStoreId(null)} onViewStore={openStorePopup} />}
       <SettingsMenu
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -854,10 +871,7 @@ function App() {
           productId={searchProductOpen.productId}
           storeName={searchProductOpen.storeName}
           onBack={() => setSearchProductOpen(null)}
-          onViewStore={(storeId) => {
-            setSearchProductOpen(null)
-            setDetailStoreId(storeId)
-          }}
+          onViewStore={openStorePopup}
         />
       )}
     </div>
