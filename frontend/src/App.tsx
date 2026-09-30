@@ -101,7 +101,7 @@ const TOWN_FIELD_BOTTOM = 60
 const PEEK_HEIGHT = 140
 const FIT_WIDTH_RATIO = 0.9
 
-function fitBoundsInBand(map: L.Map, bounds: [[number, number], [number, number]]) {
+function fitBoundsInBand(map: L.Map, bounds: [[number, number], [number, number]], widthRatio = FIT_WIDTH_RATIO) {
   const size = map.getSize()
   const sw = bounds[0]
   const ne = bounds[1]
@@ -112,7 +112,7 @@ function fitBoundsInBand(map: L.Map, bounds: [[number, number], [number, number]
   if (lngSpan <= 1e-6) {
     zoom = Math.max(map.getZoom(), 14)
   } else {
-    zoom = Math.log2((FIT_WIDTH_RATIO * size.x * 360) / (256 * lngSpan))
+    zoom = Math.log2((widthRatio * size.x * 360) / (256 * lngSpan))
   }
   zoom = Math.min(Math.max(zoom, map.getMinZoom()), map.getMaxZoom())
   const bandMiddlePx = (TOWN_FIELD_BOTTOM + (size.y - PEEK_HEIGHT)) / 2
@@ -140,7 +140,7 @@ function MapController({
         [request.lat - request.radiusKm / 111, request.lng - request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
         [request.lat + request.radiusKm / 111, request.lng + request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
       ]
-      fitBoundsInBand(map, bounds)
+      fitBoundsInBand(map, bounds, 0.2)
     } else if (request.type === 'focus') {
       const size = map.getSize()
       const pt = map.project([request.lat, request.lng], map.getZoom())
