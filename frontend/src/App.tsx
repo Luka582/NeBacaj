@@ -12,6 +12,15 @@ import { cropImageUrl } from './format'
 
 const CARTO_KEY = __CARTO_API_KEY__
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
+const DEFAULT_TOWN = 'Novi Sad'
+
+function loadSavedTown(): string {
+  try {
+    return localStorage.getItem('lastTown') || DEFAULT_TOWN
+  } catch {
+    return DEFAULT_TOWN
+  }
+}
 const cartoUrl = `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${CARTO_KEY}`
 
 interface Config {
@@ -206,8 +215,8 @@ function formatMinutes(minutes: number): string {
 function App() {
   const [stores, setStores] = useState<Store[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [selectedTown, setSelectedTown] = useState<string>('Sve')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedTown, setSelectedTown] = useState<string>(() => loadSavedTown())
+  const [searchQuery, setSearchQuery] = useState(() => loadSavedTown())
   const [townSearchOpen, setTownSearchOpen] = useState(false)
   const [townOverlayH, setTownOverlayH] = useState<number | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
@@ -343,27 +352,21 @@ function App() {
     setInvalidateSignal((n) => n + 1)
   }
 
+  const didInitialFit = useRef(false)
+  useEffect(() => {
+    if (didInitialFit.current || stores.length === 0) return
+    didInitialFit.current = true
+    fitToTown(selectedTown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stores])
+
   const towns = Array.from(new Set(stores.map((s) => s.town))).sort()
 
   function storesForTown(town: string): Store[] {
-    return town === 'Sve' ? stores : stores.filter((s) => s.town === town)
+    return stores.filter((s) => s.town === town)
   }
 
   function fitToTown(town: string) {
-    if (town === 'Sve') {
-      if (stores.length === 0) return
-      const lats = stores.map((s) => s.latitude)
-      const lngs = stores.map((s) => s.longitude)
-      const dLat = radius / 111
-      const dLng = radius / (111 * Math.cos(((Math.min(...lats) + Math.max(...lats)) / 2 * Math.PI) / 180))
-      const bounds: [[number, number], [number, number]] = [
-        [Math.min(...lats) - dLat, Math.min(...lngs) - dLng],
-        [Math.max(...lats) + dLat, Math.max(...lngs) + dLng],
-      ]
-      requestSeq.current += 1
-      setMapRequest({ seq: requestSeq.current, type: 'town', bounds })
-      return
-    }
     const townStores = storesForTown(town)
     if (townStores.length === 0) return
     const lats = townStores.map((s) => s.latitude)
@@ -380,25 +383,25 @@ function App() {
 
   function selectTown(town: string) {
     setSelectedTown(town)
-    setSearchQuery(town === 'Sve' ? '' : town)
+    setSearchQuery(town)
     setTownSearchOpen(false)
     fitToTown(town)
-    if (town !== 'Sve') {
-      setRecentTowns((prev) => {
-        const next = [town, ...prev.filter((t) => t !== town)].slice(0, 5)
-        try {
-          localStorage.setItem('recentTowns', JSON.stringify(next))
-        } catch {
-          return prev
-        }
-        return next
-      })
+    try {
+      localStorage.setItem('lastTown', town)
+    } catch {
     }
+    setRecentTowns((prev) => {
+      const next = [town, ...prev.filter((t) => t !== town)].slice(0, 5)
+      try {
+        localStorage.setItem('recentTowns', JSON.stringify(next))
+      } catch {
+        return prev
+      }
+      return next
+    })
   }
 
-  const filtered = selectedTown === 'Sve'
-    ? stores
-    : stores.filter((s) => s.town === selectedTown)
+  const filtered = stores.filter((s) => s.town === selectedTown)
   const nowMinutes = getSerbiaMinutes()
 
   function handleUseMyLocation() {
@@ -423,6 +426,10 @@ function App() {
               setSelectedTown(town)
               setSearchQuery(town)
               setTownSearchOpen(false)
+              try {
+                localStorage.setItem('lastTown', town)
+              } catch {
+              }
             }
           })
           .catch(() => {})
@@ -448,7 +455,7 @@ function App() {
       () => {
         const params = new URLSearchParams()
         if (q) params.set('q', q)
-        if (selectedTown !== 'Sve') params.set('town', selectedTown)
+        params.set('town', selectedTown)
         if (userLocation) {
           params.set('lat', String(userLocation[0]))
           params.set('lng', String(userLocation[1]))
@@ -612,42 +619,17 @@ function App() {
 
 <div className="pointer-events-auto absolute top-4 left-16 right-16 z-[1000] sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2">
         <div className="relative w-full max-w-sm sm:w-96">
-          {searchQuery ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedTown('Sve')
-                setSearchQuery('')
-              }}
-              aria-label="Prikaži sve gradove"
-              className="absolute top-1/2 right-2.5 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-slate-200/80 text-slate-600 active:bg-slate-300"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <path d="M18 6 6 18" />
-                <path d="m6 6 12 12" />
-              </svg>
-            </button>
-          ) : (
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-brand-400"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          )}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-brand-400"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
           <button
             type="button"
             onClick={() => setTownSearchOpen(true)}
@@ -749,16 +731,6 @@ function App() {
             onTouchMove={dismissKeyboard}
             className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto overscroll-contain px-2 py-2"
           >
-            <li>
-              <button
-                type="button"
-                {...tapHandlers(() => selectTown('Sve'))}
-                onClick={() => selectTown('Sve')}
-                className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-brand-50 active:bg-brand-50"
-              >
-                Svi gradovi
-              </button>
-            </li>
             {recentTowns.length > 0 && (
               <>
                 <li className="border-t border-slate-100 px-4 pt-3 pb-1 text-xs font-semibold text-slate-400">
@@ -830,7 +802,6 @@ function App() {
               <button
                 type="button"
                 onClick={() => {
-                  setSearchQuery('')
                   setTownSearchOpen(true)
                 }}
                 className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 text-xs font-bold text-slate-700 active:bg-slate-200"
