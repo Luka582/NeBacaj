@@ -47,6 +47,23 @@ button:not(:disabled):active {
   scale: 0.97;
 }
 
+/* Block browser pinch / double-tap zoom outside the Leaflet map.
+   The map keeps its own gestures (touch-action: none). */
+* {
+  touch-action: pan-x pan-y;
+}
+
+.leaflet-container,
+.leaflet-container * {
+  touch-action: none;
+}
+
+/* Prevent iOS Safari from auto-zooming into focused inputs/textarea. */
+#root input,
+#root textarea {
+  font-size: 16px;
+}
+
 .store-popup .leaflet-popup-content-wrapper {
   border-radius: 16px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
