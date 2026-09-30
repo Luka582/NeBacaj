@@ -25,7 +25,9 @@ Create the environment file and fill in your keys (see
 cp .env.example .env
 ```
 
-Create the initial admin account (only the first time):
+Create the initial admin account (only the first time). You'll be prompted
+for the admin password — it is hashed and stored in the database and never
+written to `.env` or anywhere else:
 
 ```bash
 uv run python -m backend.seed_admin
@@ -51,8 +53,7 @@ Create a `.env` file in the project root:
 | --- | --- | --- |
 | `CARTO_API_KEY` | Yes (frontend) | Key for Carto basemap tiles. Get a free key at https://carto.com/basemaps/apikey. |
 | `JWT_SECRET` | Yes | Secret used to sign auth tokens. Generate one, e.g. `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |
-| `ADMIN_EMAIL` | Yes | Email of the initial admin account. Used by `backend.seed_admin`. |
-| `ADMIN_PASSWORD` | Yes | Initial password for that admin account. |
+| `ADMIN_EMAIL` | Yes | Email of the initial admin account. Used by `backend.seed_admin`, which then prompts you for the admin password (never stored in `.env`). |
 | `AUTO_REPLY_EMAIL` | No | Gmail address used as the SMTP sender for temporary passwords and recovery codes. If empty, no emails are sent. |
 | `AUTO_REPLY_EMAIL_APP_PASSWORD` | No | Gmail **app password** for the sender address (not your regular password). |
 | `IMAGEKIT_URL_ENDPOINT` | No | ImageKit URL endpoint (e.g. `https://ik.imagekit.io/your_imagekit_id`). Needed for store/product images. |
