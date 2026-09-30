@@ -121,16 +121,80 @@ app) and also remove any uploaded ImageKit image.
   (`/auth/request-recovery-code`): a code is valid for 10 minutes, and requests
   are rate-limited (one per minute).
 
+## Codebase navigation
+
+### Backend (`backend/` — FastAPI)
+
+- `main.py` — entrypoint (`python -m backend.main`, port 8000).
+- `app.py` — FastAPI app: all routes, auth, and business logic.
+- `db.py` — SQLite helpers/schema, `nebacaj.db` lives in the project root.
+- `schemas.py` — request/response models; `security.py` — password hashing, JWT,
+  recovery codes; `images.py` — ImageKit uploads; `emailer.py` — SMTP.
+- `cleanup.py` — deletes products past their expiration; runs in the app.
+- `seed_admin.py` / `make_dummy_data.py` — one-off scripts.
+
+### Admin panel (`admin/` — Streamlit)
+
+- `app.py` — the UI; `api.py` — talks to the backend API.
+
+### Frontend (`frontend/src/` — React + TypeScript + Tailwind + Leaflet)
+
+- `App.tsx` — the hub. Owns the map (Leaflet), all overlays, the store list and
+  product-search state, the town dropdown, and the `mapRequest` mechanism that
+  drives centering/zoom through `MapController`. Also defines
+  `fitBoundsInBand`, the desktop/mobile breakpoint math, and `openStorePopup`.
+- `ProductSheet.tsx` — product search results. Bottom sheet on mobile
+  (<768px), fixed right-side panel on desktop (≥768px). Exports
+  `ProductSearchResult` and `SIDE_PANEL_WIDTH`. Its `expanded` state is owned by
+  `App` (via `expanded`/`onExpandedChange`).
+- `StoreDetail.tsx` — full-screen store page (info, working hours, product list);
+  can open a product detail on top of itself.
+- `ProductDetail.tsx` — full-screen product page. "Pogledaj radnju" calls the
+  `onViewStore` prop, which in `App` collapses the product sheet and opens the
+  store's map popup instead of the store page.
+- `SettingsMenu.tsx` — slide-in settings (opens `MyProducts`).
+- `MyProducts.tsx` — worker flow: login, "my products" list, `ProductForm`
+  (add/edit; embeds the in-app camera). ~900 lines.
+- `tapHandlers.ts` — pointer-event helpers: suppress the ghost map click after
+  list taps (`tapHandlers`, `swallowImminentClick`) and hide the keyboard on
+  scroll (`dismissKeyboard`). Used by ProductSheet/MyProducts.
+- `format.ts` — price/date/time formatting plus `cropImageUrl` (ImageKit
+  resize/crop); `FreeTag.tsx` — "Besplatno!" badge; `auth.ts` — worker session
+  helpers (`nebacaj_session` localStorage key); `index.css` — Tailwind theme,
+  brand colors, and the `store-popup*` Leaflet popup styles.
+
+### Overlay layering & state
+
+- All full-screen overlays are z-indexed, from low to high: ProductSheet and
+  SettingsMenu `z-[1500]`, town dropdown `z-[1600]` (backdrop `1599`), StoreDetail
+  and MyProducts `z-[2000]`, product form `2100`, camera `2200`, confirm dialog
+  `2300`, ProductDetail `z-[3000]`. Key whenever you add an overlay.
+- The `md` (≥768px) breakpoint flips ProductSheet from bottom sheet to side
+  panel and changes the map centering math — keep new desktop layouts in sync.
+- Map interaction is driven by the `mapRequest` state (`town`/`location`/
+  `focus`/`store`); marker clicks set `selectedStoreId`, whose effect opens the
+  marker popup.
+- localStorage keys: `lastTown`, `recentTowns`, `nebacajHintDismissed` (first-use
+  popup), `nebacaj_session`.
+
 ## Map zoom & centering
 
-Map centering/zoom is hardcoded in `frontend/src/App.tsx`:
+Map centering/zoom is handled in `frontend/src/App.tsx` (`fitBoundsInBand`).
 
-- Town selection (and the location-button fallback) centers the view inside the
-  band between the town search field (bottom edge) and the bottom product sheet
-  (top edge), and zooms so the leftmost–rightmost store spans 90% of the screen
-  width (`FIT_WIDTH_RATIO`).
-- `LOCATION_RADIUS_KM` is the radius (km) fitted when the **location button**
-  succeeds.
+The product results panel (`frontend/src/ProductSheet.tsx`) is a bottom sheet on
+mobile (<768px) and a fixed right-side panel on desktop (≥768px,
+`SIDE_PANEL_WIDTH = 380`). `fitBoundsInBand` adjusts for this:
+
+- **Mobile:** centers the view inside the band between the town search field
+  (bottom edge) and the bottom product sheet (top edge), and zooms so the
+  leftmost–rightmost store spans 90% of the screen width (`FIT_WIDTH_RATIO`).
+- **Desktop:** the vertical band is the full height (no bottom sheet), and the
+  horizontal fit uses the screen width minus the side panel, centered within the
+  map area left of it. Single-store and popup pans (`focus`/`store` requests)
+  shift right by half the panel width so pins/popups are not hidden behind it.
+
+`LOCATION_RADIUS_KM` is the radius (km) fitted when the **location button**
+succeeds (fitted to 20% of the available width).
 
 ## Dummy Data
 
