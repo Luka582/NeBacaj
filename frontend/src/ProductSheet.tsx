@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cropImageUrl, formatPrice } from './format'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
 
@@ -49,6 +49,13 @@ export default function ProductSheet({
   const [dragHeight, setDragHeight] = useState<number | null>(null)
   const [vh] = useState(() => window.innerHeight)
   const dragRef = useRef<{ startY: number; wasExpanded: boolean } | null>(null)
+
+  useEffect(() => {
+    if (!expanded && focusedSearch.current === 'product') {
+      focusedSearch.current = null
+      onSearchFocused(false)
+    }
+  }, [expanded, focusedSearch, onSearchFocused])
 
   function beginDrag(e: React.PointerEvent) {
     if (e.button !== 0) return
