@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { loadSession, saveSession, clearSession, isWorker } from './auth'
 import type { Session } from './auth'
 import { cropImageUrl, formatPrice, formatShortDate } from './format'
+import FreeTag from './FreeTag'
 import { dismissKeyboard } from './tapHandlers'
 
 const SERBIA_MIN_OFFSET = 120
@@ -827,7 +828,11 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-900">{p.name}</p>
                         <div className="mt-0.5 flex items-center gap-2">
-                          <p className="text-sm font-bold text-red-600">{formatPrice(p.new_price)}</p>
+                          {p.new_price === 0 ? (
+                            <FreeTag />
+                          ) : (
+                            <p className="text-sm font-bold text-red-600">{formatPrice(p.new_price)}</p>
+                          )}
                           {p.old_price > p.new_price && (
                             <p className="text-xs text-slate-400 line-through">{formatPrice(p.old_price)}</p>
                           )}

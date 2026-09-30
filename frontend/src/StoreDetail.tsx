@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cropImageUrl, formatMinutes, formatPrice, getSerbiaWeekday, getSerbiaMinutes, relativeTimeAgo } from './format'
+import FreeTag from './FreeTag'
 import ProductDetail from './ProductDetail'
 
 interface StoreDetailData {
@@ -394,12 +395,20 @@ function StoreDetail({ storeId, onClose }: { storeId: string; onClose: () => voi
                           )}
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="text-sm font-bold text-red-600">{formatPrice(p.new_price)}</p>
-                          {p.old_price > p.new_price && (
+                          {p.new_price === 0 ? (
+                            <FreeTag />
+                          ) : (
+                            <p className="text-sm font-bold text-red-600">{formatPrice(p.new_price)}</p>
+                          )}
+                          {p.old_price > p.new_price && p.new_price !== 0 && (
                             <>
                               <span className="mt-0.5 inline-block rounded-full bg-red-500 px-1.5 py-px text-[10px] font-bold text-white">
                                 −{Math.round((1 - p.new_price / p.old_price) * 100)}%
                               </span>
+                            </>
+                          )}
+                          {p.old_price > p.new_price && (
+                            <>
                               <p className="text-xs text-slate-400 line-through">{formatPrice(p.old_price)}</p>
                             </>
                           )}

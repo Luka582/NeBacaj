@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cropImageUrl, formatPrice } from './format'
+import FreeTag from './FreeTag'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
 
 export interface ProductSearchResult {
@@ -235,14 +236,18 @@ export default function ProductSheet({
                 </p>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-sm font-bold text-red-600">{formatPrice(r.new_price)}</p>
+                {r.new_price === 0 ? (
+                  <FreeTag />
+                ) : (
+                  <p className="text-sm font-bold text-red-600">{formatPrice(r.new_price)}</p>
+                )}
+                {r.old_price > r.new_price && r.new_price !== 0 && (
+                  <span className="mt-0.5 inline-block rounded-full bg-red-500 px-1.5 py-px text-[10px] font-bold text-white">
+                    −{Math.round((1 - r.new_price / r.old_price) * 100)}%
+                  </span>
+                )}
                 {r.old_price > r.new_price && (
-                  <>
-                    <span className="mt-0.5 inline-block rounded-full bg-red-500 px-1.5 py-px text-[10px] font-bold text-white">
-                      −{Math.round((1 - r.new_price / r.old_price) * 100)}%
-                    </span>
-                    <p className="text-xs text-slate-400 line-through">{formatPrice(r.old_price)}</p>
-                  </>
+                  <p className="text-xs text-slate-400 line-through">{formatPrice(r.old_price)}</p>
                 )}
               </div>
             </button>
