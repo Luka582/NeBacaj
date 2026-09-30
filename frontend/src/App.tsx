@@ -830,15 +830,14 @@ function App() {
         onTownDropdown={setTownSearchOpen}
       />
       {detailStoreId && <StoreDetail storeId={detailStoreId} onClose={() => setDetailStoreId(null)} />}
-      {settingsOpen && (
-        <SettingsMenu
-          onClose={() => setSettingsOpen(false)}
-          onOpenMyProducts={() => {
-            setSettingsOpen(false)
-            setMyProductsOpen(true)
-          }}
-        />
-      )}
+      <SettingsMenu
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onOpenMyProducts={() => {
+          setSettingsOpen(false)
+          setMyProductsOpen(true)
+        }}
+      />
       {myProductsOpen && <MyProducts onClose={() => setMyProductsOpen(false)} onChanged={loadStores} />}
       {searchProductOpen && (
         <ProductDetail

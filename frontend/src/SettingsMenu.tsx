@@ -65,11 +65,12 @@ function PasswordInput({ className, ...props }: React.InputHTMLAttributes<HTMLIn
 }
 
 interface SettingsMenuProps {
+  open: boolean
   onClose: () => void
   onOpenMyProducts: () => void
 }
 
-function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
+function SettingsMenu({ open, onClose, onOpenMyProducts }: SettingsMenuProps) {
   const [session, setSession] = useState<Session | null>(() => loadSession())
   const [vh] = useState(() => window.innerHeight)
   const [email, setEmail] = useState('')
@@ -283,7 +284,12 @@ function SettingsMenu({ onClose, onOpenMyProducts }: SettingsMenuProps) {
     'w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100'
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[1500] flex flex-col bg-white" style={{ height: vh }}>
+    <div
+      className={`pointer-events-none fixed inset-x-0 top-0 z-[1500] flex flex-col overflow-hidden bg-white opacity-0 shadow-2xl transition-[transform,opacity] duration-300 ease-out ${
+        open ? 'pointer-events-auto translate-x-0 opacity-100' : '-translate-x-full opacity-0'
+      }`}
+      style={{ height: vh }}
+    >
       <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-2 py-3">
         <button
           type="button"
