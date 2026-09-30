@@ -81,6 +81,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
   const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
+  const [filePreview, setFilePreview] = useState<string | null>(null)
   const [removeImage, setRemoveImage] = useState(false)
   const [loading, setLoading] = useState(mode !== 'create')
   const [busy, setBusy] = useState(false)
@@ -114,6 +115,16 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
       alive = false
     }
   }, [mode, productId, token])
+
+  useEffect(() => {
+    if (!file) {
+      setFilePreview(null)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setFilePreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -281,8 +292,13 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-500">Slika</label>
           {imageUrl && !file && !removeImage && (
-            <div className="mb-2 flex items-center gap-3">
-              <img src={imageUrl} alt="" className="h-14 w-14 rounded-lg object-cover" />
+            <div className="mb-2 flex flex-col gap-2">
+              <img
+                src={cropImageUrl(imageUrl, 960, 540)}
+                alt=""
+                className="w-full rounded-xl object-cover"
+                style={{ aspectRatio: '16 / 9' }}
+              />
               <label className="flex items-center gap-2 text-xs text-slate-600">
                 <input
                   type="checkbox"
@@ -302,16 +318,26 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
             className="block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand-600"
           />
           {file && (
-            <button
-              type="button"
-              onClick={() => {
-                setFile(null)
-                if (fileInputRef.current) fileInputRef.current.value = ''
-              }}
-              className="mt-1 text-xs font-semibold text-red-500"
-            >
-              Ukloni izabranu sliku
-            </button>
+            <div className="mt-2 flex flex-col gap-2">
+              {filePreview && (
+                <img
+                  src={filePreview}
+                  alt=""
+                  className="w-full rounded-xl object-cover"
+                  style={{ aspectRatio: '16 / 9' }}
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setFile(null)
+                  if (fileInputRef.current) fileInputRef.current.value = ''
+                }}
+                className="self-start text-xs font-semibold text-red-500"
+              >
+                Ukloni izabranu sliku
+              </button>
+            </div>
           )}
         </div>
         {error && <p className="text-sm text-red-500">{error}</p>}
