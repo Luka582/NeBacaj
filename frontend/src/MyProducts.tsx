@@ -161,7 +161,7 @@ function CameraCapture({ onCapture, onClose }: { onCapture: (file: File) => void
           onClick={capture}
           aria-label="Uslikaj"
           disabled={!!error}
-          className="h-16 w-16 rounded-full border-4 border-white bg-white/25 active:scale-95 disabled:opacity-40"
+          className="h-16 w-16 rounded-full border-4 border-white bg-white/25 disabled:opacity-40"
         >
           <span className="h-12 w-12 rounded-full bg-white" />
         </button>

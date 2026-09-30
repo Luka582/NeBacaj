@@ -43,10 +43,6 @@ button {
   user-select: none;
 }
 
-button:not(:disabled):active {
-  scale: 0.97;
-}
-
 /* Block browser pinch / double-tap zoom outside the Leaflet map.
    The map keeps its own gestures (touch-action: none). */
 * {

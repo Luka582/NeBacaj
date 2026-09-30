@@ -695,7 +695,7 @@ function App() {
         type="button"
         onClick={handleUseMyLocation}
         title="Koristi moju lokaciju"
-        className={`absolute top-4 right-4 z-[1001] flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 shadow-lg backdrop-blur transition active:scale-95 ${
+        className={`absolute top-4 right-4 z-[1001] flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 shadow-lg backdrop-blur transition ${
           userLocation ? 'text-brand-600 ring-2 ring-brand-200 hover:bg-brand-50' : 'text-slate-600 hover:bg-brand-50'
         }`}
       >
@@ -717,7 +717,7 @@ function App() {
         onClick={() => setSettingsOpen(true)}
         title="Podešavanja"
         aria-label="Podešavanja"
-        className="absolute top-4 left-4 z-[1001] flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-slate-600 shadow-lg backdrop-blur transition hover:bg-brand-50 active:scale-95"
+        className="absolute top-4 left-4 z-[1001] flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-slate-600 shadow-lg backdrop-blur transition hover:bg-brand-50"
       >
         <svg
           viewBox="0 0 24 24"
