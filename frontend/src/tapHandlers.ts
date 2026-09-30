@@ -6,6 +6,7 @@ const tapSessions: Record<number, TapSession> = {}
 export function tapHandlers(fn: () => void) {
   return {
     onPointerDown: (e: ReactPointerEvent) => {
+      e.preventDefault()
       tapSessions[e.pointerId] = { sx: e.clientX, sy: e.clientY, fn }
     },
     onPointerUp: (e: ReactPointerEvent) => {
@@ -14,7 +15,10 @@ export function tapHandlers(fn: () => void) {
       if (!s) return
       const dx = e.clientX - s.sx
       const dy = e.clientY - s.sy
-      if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) s.fn?.()
+      if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) {
+        swallowImminentClick()
+        s.fn?.()
+      }
     },
     onPointerCancel: (e: ReactPointerEvent) => {
       delete tapSessions[e.pointerId]
@@ -29,6 +33,22 @@ try {
   })
 } catch {
   lastFocusAt = 0
+}
+
+function swallowImminentClick() {
+  let removed = false
+  const remove = () => {
+    if (removed) return
+    removed = true
+    document.removeEventListener('click', swallow, true)
+  }
+  const swallow = (ev: MouseEvent) => {
+    ev.stopPropagation()
+    ev.preventDefault()
+    remove()
+  }
+  document.addEventListener('click', swallow, true)
+  window.setTimeout(remove, 200)
 }
 
 export function dismissKeyboard() {

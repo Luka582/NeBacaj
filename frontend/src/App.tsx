@@ -240,7 +240,6 @@ function App() {
   const [selectedTown, setSelectedTown] = useState<string>(() => loadSavedTown())
   const [searchQuery, setSearchQuery] = useState(() => loadSavedTown())
   const [townSearchOpen, setTownSearchOpen] = useState(false)
-  const [townOverlayH, setTownOverlayH] = useState<number | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const focusedSearch = useRef<'town' | 'product' | null>(null)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
@@ -296,9 +295,7 @@ function App() {
   }, [selectedStoreId])
 
   useEffect(() => {
-    if (townSearchOpen) {
-      setTownOverlayH(window.innerHeight)
-    } else {
+    if (!townSearchOpen) {
       focusedSearch.current = null
       setInputFocused(false)
     }
@@ -369,6 +366,8 @@ function App() {
   }, [stores])
 
   const towns = Array.from(new Set(stores.map((s) => s.town))).sort()
+  const hasRecentTowns = recentTowns.some((t) => towns.includes(t))
+  const townListMaxHeight = Math.max(120, window.innerHeight - 140)
 
   function storesForTown(town: string): Store[] {
     return stores.filter((s) => s.town === town)
@@ -614,8 +613,59 @@ function App() {
         })}
       </MapContainer>
 
-<div className="pointer-events-auto absolute top-4 left-16 right-16 z-[1000] sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2">
+<div
+        className={`pointer-events-auto absolute top-4 left-16 right-16 sm:left-1/2 sm:right-auto sm:w-auto sm:-translate-x-1/2 ${
+          townSearchOpen ? 'z-[1610]' : 'z-[1000]'
+        }`}
+      >
         <div className="relative w-full max-w-sm sm:w-96">
+          {townSearchOpen && (
+            <>
+              <div className="fixed inset-0 z-[1599]" onClick={() => setTownSearchOpen(false)} />
+              <div className="absolute inset-x-0 top-full z-[1600] mt-1.5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10">
+                <ul
+                  role="listbox"
+                  onWheel={dismissKeyboard}
+                  onTouchMove={dismissKeyboard}
+                  className="divide-y divide-slate-100 overflow-y-auto overscroll-contain py-1"
+                  style={{ maxHeight: `${townListMaxHeight}px` }}
+                >
+                  {hasRecentTowns && (
+                    <>
+                      {recentTowns
+                        .filter((t) => towns.includes(t))
+                        .map((t) => (
+                          <li key={t}>
+                            <button
+                              type="button"
+                              {...tapHandlers(() => selectTown(t))}
+                              onClick={() => selectTown(t)}
+                              className="w-full px-4 py-3 text-left text-sm font-medium text-brand-600 hover:bg-brand-50 active:bg-brand-50"
+                            >
+                              {t}
+                            </button>
+                          </li>
+                        ))}
+                    </>
+                  )}
+                  {towns
+                    .filter((t) => !recentTowns.includes(t))
+                    .map((t) => (
+                      <li key={t}>
+                        <button
+                          type="button"
+                          {...tapHandlers(() => selectTown(t))}
+                          onClick={() => selectTown(t)}
+                          className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-brand-50 active:bg-brand-50"
+                        >
+                          {t}
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            </>
+          )}
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -623,14 +673,16 @@ function App() {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-brand-400"
+            className="pointer-events-none absolute top-1/2 right-3 z-[1900] h-5 w-5 -translate-y-1/2 text-brand-400"
           >
             <path d="m6 9 6 6 6-6" />
           </svg>
           <button
             type="button"
-            onClick={() => setTownSearchOpen(true)}
-            className="w-full rounded-full border border-slate-200 bg-white py-2.5 pr-10 pl-4 text-left text-sm font-semibold text-slate-800 shadow-lg shadow-slate-900/5 outline-none"
+            onClick={() => setTownSearchOpen((v) => !v)}
+            aria-haspopup="listbox"
+            aria-expanded={townSearchOpen}
+            className="relative z-[1800] w-full rounded-full border border-slate-200 bg-white py-2.5 pr-10 pl-4 text-left text-sm font-semibold text-slate-800 shadow-lg shadow-slate-900/5 outline-none"
           >
             {searchQuery || 'Pronađi grad...'}
           </button>
@@ -680,78 +732,6 @@ function App() {
           <circle cx="12" cy="12" r="3" />
         </svg>
       </button>
-      {townSearchOpen && (
-        <div
-          className="fixed inset-x-0 top-0 z-[1600] flex h-screen flex-col bg-white"
-          style={{ height: townOverlayH != null ? `${townOverlayH}px` : '100dvh' }}
-        >
-          <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-2 py-3">
-            <button
-              type="button"
-              onClick={() => {
-                setTownSearchOpen(false)
-              }}
-              aria-label="Nazad"
-              className="pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5"
-              >
-                <path d="M19 12H5" />
-                <path d="m12 19-7-7 7-7" />
-              </svg>
-            </button>
-            <div className="flex-1 px-1 text-sm font-bold text-slate-800">Izaberi grad</div>
-          </div>
-          <ul
-            onWheel={dismissKeyboard}
-            onTouchMove={dismissKeyboard}
-            className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto overscroll-contain px-2 py-2"
-          >
-            {recentTowns.length > 0 && (
-              <>
-                <li className="border-t border-slate-100 px-4 pt-3 pb-1 text-xs font-semibold text-slate-400">
-                  Nedavni
-                </li>
-                {recentTowns
-                  .filter((t) => towns.includes(t))
-                  .map((t) => (
-                    <li key={t}>
-                      <button
-                        type="button"
-                        {...tapHandlers(() => selectTown(t))}
-                        onClick={() => selectTown(t)}
-                        className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-brand-600 hover:bg-brand-50 active:bg-brand-50"
-                      >
-                        {t}
-                      </button>
-                    </li>
-                  ))}
-              </>
-            )}
-            {towns
-              .filter((t) => !recentTowns.includes(t))
-              .map((t) => (
-                <li key={t}>
-                  <button
-                    type="button"
-                    {...tapHandlers(() => selectTown(t))}
-                    onClick={() => selectTown(t)}
-                    className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-brand-50 active:bg-brand-50"
-                  >
-                    {t}
-                  </button>
-                </li>
-              ))}
-          </ul>
-        </div>
-      )}
       {showHint && !townSearchOpen && !inputFocused && productSearchQuery.length === 0 && (
         <div className="pointer-events-auto absolute top-20 left-1/2 z-[1002] w-[calc(100%-1.5rem)] max-w-sm -translate-x-1/2 sm:w-96">
           <div className="rounded-2xl bg-white/95 p-3.5 shadow-xl ring-1 ring-slate-900/5 backdrop-blur">
@@ -830,19 +810,17 @@ function App() {
           </div>
         </div>
       )}
-      {!townSearchOpen && (
-        <ProductSheet
-          products={productResults}
-          loading={productSearchLoading}
-          error={productSearchError}
-          query={productSearchQuery}
-          onQueryChange={setProductSearchQuery}
-          onSelect={openProductFromSearch}
-          focusedSearch={focusedSearch}
-          onSearchFocused={setInputFocused}
-          onTownDropdown={setTownSearchOpen}
-        />
-      )}
+      <ProductSheet
+        products={productResults}
+        loading={productSearchLoading}
+        error={productSearchError}
+        query={productSearchQuery}
+        onQueryChange={setProductSearchQuery}
+        onSelect={openProductFromSearch}
+        focusedSearch={focusedSearch}
+        onSearchFocused={setInputFocused}
+        onTownDropdown={setTownSearchOpen}
+      />
       {detailStoreId && <StoreDetail storeId={detailStoreId} onClose={() => setDetailStoreId(null)} />}
       {settingsOpen && (
         <SettingsMenu
