@@ -178,53 +178,6 @@ const userLocationIcon = L.divIcon({
   `,
 })
 
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-}
-
-function levenshtein(a: string, b: string): number {
-  const m = a.length
-  const n = b.length
-  if (m === 0) return n
-  if (n === 0) return m
-  const dp = new Array(n + 1)
-  for (let j = 0; j <= n; j++) dp[j] = j
-  for (let i = 1; i <= m; i++) {
-    let prev = dp[0]
-    dp[0] = i
-    for (let j = 1; j <= n; j++) {
-      const tmp = dp[j]
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1
-      dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost)
-      prev = tmp
-    }
-  }
-  return dp[n]
-}
-
-function fuzzyMatchTowns(towns: string[], query: string): string[] {
-  const q = normalize(query)
-  return towns
-    .filter((town) => {
-      const t = normalize(town)
-      if (t.startsWith(q) || t.includes(q)) return true
-      return levenshtein(q, t) <= 2
-    })
-    .sort((a, b) => {
-      const na = normalize(a)
-      const nb = normalize(b)
-      const startA = na.startsWith(q)
-      const startB = nb.startsWith(q)
-      if (startA !== startB) return startA ? -1 : 1
-      const distA = levenshtein(q, na)
-      const distB = levenshtein(q, nb)
-      return distA - distB
-    })
-}
-
 function getSerbiaMinutes(): number {
   const now = new Date()
   const serbiaOffset = 120
@@ -292,8 +245,6 @@ function App() {
       return []
     }
   })
-  const inputRef = useRef<HTMLInputElement>(null)
-  const townOverlayInputRef = useRef<HTMLInputElement>(null)
   const requestSeq = useRef(0)
   const [productSearchQuery, setProductSearchQuery] = useState('')
   const productSearchQueryRef = useRef('')
@@ -330,11 +281,9 @@ function App() {
   useEffect(() => {
     if (townSearchOpen) {
       setTownOverlayH(window.innerHeight)
-      townOverlayInputRef.current?.focus()
     } else {
       focusedSearch.current = null
       setInputFocused(false)
-      inputRef.current?.blur()
     }
   }, [townSearchOpen])
 
@@ -395,11 +344,6 @@ function App() {
   }
 
   const towns = Array.from(new Set(stores.map((s) => s.town))).sort()
-
-  const query = searchQuery.trim()
-  const filteredTowns = query.length === 0
-    ? towns
-    : fuzzyMatchTowns(towns, query)
 
   function storesForTown(town: string): Store[] {
     return town === 'Sve' ? stores : stores.filter((s) => s.town === town)
@@ -671,8 +615,11 @@ function App() {
           {searchQuery ? (
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
-              aria-label="Očisti pretragu"
+              onClick={() => {
+                setSelectedTown('Sve')
+                setSearchQuery('')
+              }}
+              aria-label="Prikaži sve gradove"
               className="absolute top-1/2 right-2.5 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-slate-200/80 text-slate-600 active:bg-slate-300"
             >
               <svg
@@ -698,32 +645,16 @@ function App() {
               strokeLinejoin="round"
               className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-brand-400"
             >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
+              <path d="m6 9 6 6 6-6" />
             </svg>
           )}
-          <input
-            ref={inputRef}
-            id="town-search"
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => {
-              focusedSearch.current = 'town'
-              setSearchQuery('')
-              setTownSearchOpen(true)
-              setInputFocused(true)
-            }}
-            onBlur={() => {
-              focusedSearch.current = null
-              setInputFocused(false)
-            }}
-            onPointerDown={(e) => {
-              if (focusedSearch.current === 'product') e.preventDefault()
-            }}
-            placeholder="Pronađi grad..."
-            className="w-full rounded-full border border-slate-200 bg-white py-2.5 pr-10 pl-4 text-sm font-semibold text-slate-800 shadow-lg shadow-slate-900/5 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-          />
+          <button
+            type="button"
+            onClick={() => setTownSearchOpen(true)}
+            className="w-full rounded-full border border-slate-200 bg-white py-2.5 pr-10 pl-4 text-left text-sm font-semibold text-slate-800 shadow-lg shadow-slate-900/5 outline-none"
+          >
+            {searchQuery || 'Pronađi grad...'}
+          </button>
         </div>
 
         {error && <p className="mt-1 text-center text-sm text-red-500">{error}</p>}
@@ -793,7 +724,6 @@ function App() {
             <button
               type="button"
               onClick={() => {
-                setSearchQuery('')
                 setTownSearchOpen(false)
               }}
               aria-label="Nazad"
@@ -812,36 +742,7 @@ function App() {
                 <path d="m12 19-7-7 7-7" />
               </svg>
             </button>
-            <div className="relative flex-1">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-slate-400"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-              <input
-                ref={townOverlayInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => {
-                  focusedSearch.current = 'town'
-                  setInputFocused(true)
-                }}
-                onBlur={() => {
-                  focusedSearch.current = null
-                  setInputFocused(false)
-                }}
-                placeholder="Unesi naziv grada..."
-                className="w-full rounded-full border border-slate-200 bg-white py-2.5 pr-3 pl-9 text-sm font-semibold text-slate-800 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-              />
-            </div>
+            <div className="flex-1 px-1 text-sm font-bold text-slate-800">Izaberi grad</div>
           </div>
           <ul
             onWheel={dismissKeyboard}
@@ -858,7 +759,7 @@ function App() {
                 Svi gradovi
               </button>
             </li>
-            {query.length === 0 && recentTowns.length > 0 && (
+            {recentTowns.length > 0 && (
               <>
                 <li className="border-t border-slate-100 px-4 pt-3 pb-1 text-xs font-semibold text-slate-400">
                   Nedavni
@@ -879,24 +780,20 @@ function App() {
                   ))}
               </>
             )}
-            {filteredTowns.length === 0 && query.length > 0 ? (
-              <li className="px-4 py-3 text-sm text-slate-400">Nema rezultata</li>
-            ) : (
-              filteredTowns
-                .filter((t) => query.length > 0 || !recentTowns.includes(t))
-                .map((t) => (
-                  <li key={t}>
-                    <button
-                      type="button"
-                      {...tapHandlers(() => selectTown(t))}
-                      onClick={() => selectTown(t)}
-                      className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-brand-50 active:bg-brand-50"
-                    >
-                      {t}
-                    </button>
-                  </li>
-                ))
-            )}
+            {towns
+              .filter((t) => !recentTowns.includes(t))
+              .map((t) => (
+                <li key={t}>
+                  <button
+                    type="button"
+                    {...tapHandlers(() => selectTown(t))}
+                    onClick={() => selectTown(t)}
+                    className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-brand-50 active:bg-brand-50"
+                  >
+                    {t}
+                  </button>
+                </li>
+              ))}
           </ul>
         </div>
       )}
@@ -935,7 +832,6 @@ function App() {
                 onClick={() => {
                   setSearchQuery('')
                   setTownSearchOpen(true)
-                  setInputFocused(true)
                 }}
                 className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 text-xs font-bold text-slate-700 active:bg-slate-200"
               >
