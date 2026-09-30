@@ -19,8 +19,8 @@ export interface ProductSearchResult {
   distance_km?: number | null
 }
 
-const PEEK_HEIGHT = 176
-const EXPAND_SNAP_RATIO = 0.45
+const PEEK_HEIGHT = 140
+const SNAP_DRAG_DISTANCE = 100
 
 interface ProductSheetProps {
   products: ProductSearchResult[]
@@ -64,9 +64,10 @@ export default function ProductSheet({
     const end = (ev: PointerEvent) => {
       const start = dragRef.current
       if (start) {
-        const base = start.wasExpanded ? window.innerHeight : PEEK_HEIGHT
-        const desired = base + start.startY - ev.clientY
-        setExpanded(desired > window.innerHeight * EXPAND_SNAP_RATIO)
+        const delta = start.startY - ev.clientY
+        if (delta > SNAP_DRAG_DISTANCE) setExpanded(true)
+        else if (delta < -SNAP_DRAG_DISTANCE) setExpanded(false)
+        else setExpanded(start.wasExpanded)
       }
       dragRef.current = null
       setDragHeight(null)
