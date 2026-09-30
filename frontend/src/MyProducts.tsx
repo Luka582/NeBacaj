@@ -87,6 +87,13 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const descriptionRef = useRef<HTMLTextAreaElement | null>(null)
+
+  function autoResizeTextarea(el: HTMLTextAreaElement | null) {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }
 
   useEffect(() => {
     if (mode === 'create' || !productId) return
@@ -125,6 +132,10 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
     setFilePreview(url)
     return () => URL.revokeObjectURL(url)
   }, [file])
+
+  useEffect(() => {
+    autoResizeTextarea(descriptionRef.current)
+  }, [description])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -282,11 +293,15 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-500">Opis</label>
           <textarea
+            ref={descriptionRef}
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => {
+              setDescription(e.target.value)
+              autoResizeTextarea(e.target)
+            }}
             placeholder="Kratak opis proizvoda"
             rows={3}
-            className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+            className="w-full resize-none overflow-hidden rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
           />
         </div>
         <div>
