@@ -73,6 +73,101 @@ interface ProductFormProps {
   onCancel: () => void
 }
 
+function CameraCapture({ onCapture, onClose }: { onCapture: (file: File) => void; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    let stream: MediaStream | null = null
+    async function start() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false,
+        })
+        if (!alive) {
+          stream.getTracks().forEach((t) => t.stop())
+          return
+        }
+        const v = videoRef.current
+        if (v) {
+          v.srcObject = stream
+          await v.play().catch(() => {})
+        }
+      } catch {
+        if (alive) setError('Kamera nije dostupna ili pristup nije dozvoljen.')
+      }
+    }
+    start()
+    return () => {
+      alive = false
+      if (stream) stream.getTracks().forEach((t) => t.stop())
+    }
+  }, [])
+
+  function capture() {
+    const v = videoRef.current
+    if (!v || v.videoWidth === 0) return
+    const canvas = document.createElement('canvas')
+    canvas.width = v.videoWidth
+    canvas.height = v.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height)
+    canvas.toBlob(
+      (blob) => {
+        if (blob) onCapture(new File([blob], 'photo.jpg', { type: 'image/jpeg' }))
+      },
+      'image/jpeg',
+      0.9,
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-[2200] flex flex-col bg-black">
+      <div className="flex items-center justify-between px-4 py-3">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Zatvori"
+          className="flex h-10 w-10 -ml-1 items-center justify-center rounded-full text-white active:bg-white/20"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-6 w-6"
+          >
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
+        <span className="text-sm font-semibold text-white">Slikaj proizvod</span>
+        <span className="w-10" />
+      </div>
+      <div className="relative min-h-0 flex-1">
+        <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />
+        {error && <p className="absolute inset-x-0 bottom-4 px-6 text-center text-sm font-medium text-red-400">{error}</p>}
+      </div>
+      <div className="flex items-center justify-center py-6">
+        <button
+          type="button"
+          onClick={capture}
+          aria-label="Uslikaj"
+          disabled={!!error}
+          className="h-16 w-16 rounded-full border-4 border-white bg-white/25 active:scale-95 disabled:opacity-40"
+        >
+          <span className="h-12 w-12 rounded-full bg-white" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: ProductFormProps) {
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
@@ -82,6 +177,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string | null>(null)
+  const [cameraOpen, setCameraOpen] = useState(false)
   const [removeImage, setRemoveImage] = useState(false)
   const [loading, setLoading] = useState(mode !== 'create')
   const [busy, setBusy] = useState(false)
@@ -208,7 +304,8 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
     'w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100'
 
   return (
-    <form onSubmit={handleSubmit} className="fixed inset-0 z-[2100] flex flex-col bg-white">
+    <>
+      <form onSubmit={handleSubmit} className="fixed inset-0 z-[2100] flex flex-col bg-white">
       <header className="sticky top-0 z-10 shrink-0 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
           <button
@@ -325,13 +422,54 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
               </label>
             </div>
           )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand-600"
-          />
+          <div className="mt-1 flex gap-2">
+            <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-sm font-semibold text-slate-700 active:bg-slate-100">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                <circle cx="9" cy="9" r="2" />
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+              </svg>
+              Biraj iz galerije
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null
+                  setFile(f)
+                  e.target.value = ''
+                }}
+                className="hidden"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setCameraOpen(true)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-brand-100 bg-brand-50 py-2.5 text-sm font-semibold text-brand-600 active:bg-brand-100"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                <circle cx="12" cy="13" r="3" />
+              </svg>
+              Uslikaj kamerom
+            </button>
+          </div>
           {file && (
             <div className="mt-2 flex flex-col gap-2">
               {filePreview && (
@@ -373,7 +511,17 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
           </button>
         </div>
       </div>
-    </form>
+      </form>
+      {cameraOpen && (
+        <CameraCapture
+          onCapture={(f) => {
+            setFile(f)
+            setCameraOpen(false)
+          }}
+          onClose={() => setCameraOpen(false)}
+        />
+      )}
+    </>
   )
 }
 

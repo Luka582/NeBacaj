@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, time, timedelta
 from math import asin, cos, radians, sin, sqrt
 from pathlib import Path
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -501,7 +502,7 @@ async def _apply_image(
         try:
             url, file_id = await upload_image(
                 data,
-                f"{entity.id}{_image_suffix(image)}",
+                f"{entity.id}-{uuid4().hex[:8]}{_image_suffix(image)}",
                 folder,
                 image.content_type or "application/octet-stream",
             )
