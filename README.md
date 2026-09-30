@@ -121,23 +121,16 @@ app) and also remove any uploaded ImageKit image.
   (`/auth/request-recovery-code`): a code is valid for 10 minutes, and requests
   are rate-limited (one per minute).
 
-## config.json
+## Map zoom & centering
 
-Runtime configuration lives in `config.json` at the project root (outside `frontend/` and `backend/`). It is served to the frontend by a custom Vite plugin during development.
+Map centering/zoom is hardcoded in `frontend/src/App.tsx`:
 
-```json
-{
-    "STORES_RADIUS": 3.0,
-    "LOCATION_RADIUS": 0.5
-}
-```
-
-| Key | Type | Description |
-| --- | ---- | ----------- |
-| `STORES_RADIUS` | number (km) | Zoom extent used when the map is centered on a selected town (or all stores): the view fits a square of `STORES_RADIUS` km around the town/store bounds. |
-| `LOCATION_RADIUS` | number (km) | Zoom extent used when the **location button** is clicked: the map fits a square of `LOCATION_RADIUS` km around the user's GPS position. This only affects the location button, not town selection. |
-
-Both values are in kilometers; lower values produce a closer zoom.
+- Town selection (and the location-button fallback) centers the view inside the
+  band between the town search field (bottom edge) and the bottom product sheet
+  (top edge), and zooms so the leftmost–rightmost store spans 90% of the screen
+  width (`FIT_WIDTH_RATIO`).
+- `LOCATION_RADIUS_KM` is the radius (km) fitted when the **location button**
+  succeeds.
 
 ## Dummy Data
 

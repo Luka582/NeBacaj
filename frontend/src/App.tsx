@@ -23,10 +23,7 @@ function loadSavedTown(): string {
 }
 const cartoUrl = `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${CARTO_KEY}`
 
-interface Config {
-  STORES_RADIUS: number
-  LOCATION_RADIUS: number
-}
+const LOCATION_RADIUS_KM = 1.0
 
 interface Store {
   id: string
@@ -100,6 +97,30 @@ type MapRequest =
   | { seq: number; type: 'store'; lat: number; lng: number }
   | { seq: number; type: 'focus'; lat: number; lng: number }
 
+const TOWN_FIELD_BOTTOM = 60
+const PEEK_HEIGHT = 140
+const FIT_WIDTH_RATIO = 0.9
+
+function fitBoundsInBand(map: L.Map, bounds: [[number, number], [number, number]]) {
+  const size = map.getSize()
+  const sw = bounds[0]
+  const ne = bounds[1]
+  const latC = (sw[0] + ne[0]) / 2
+  const lngC = (sw[1] + ne[1]) / 2
+  const lngSpan = ne[1] - sw[1]
+  let zoom: number
+  if (lngSpan <= 1e-6) {
+    zoom = Math.max(map.getZoom(), 14)
+  } else {
+    zoom = Math.log2((FIT_WIDTH_RATIO * size.x * 360) / (256 * lngSpan))
+  }
+  zoom = Math.min(Math.max(zoom, map.getMinZoom()), map.getMaxZoom())
+  const bandMiddlePx = (TOWN_FIELD_BOTTOM + (size.y - PEEK_HEIGHT)) / 2
+  const c = map.project([latC, lngC], zoom)
+  const center = map.unproject([c.x, c.y + (size.y / 2 - bandMiddlePx)], zoom)
+  map.setView(center, zoom)
+}
+
 function MapController({
   request,
   interactionLocked,
@@ -115,10 +136,11 @@ function MapController({
     if (!request || request.seq === lastSeq.current) return
     lastSeq.current = request.seq
     if (request.type === 'location') {
-      map.fitBounds([
+      const bounds: [[number, number], [number, number]] = [
         [request.lat - request.radiusKm / 111, request.lng - request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
         [request.lat + request.radiusKm / 111, request.lng + request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
-      ])
+      ]
+      fitBoundsInBand(map, bounds)
     } else if (request.type === 'focus') {
       const size = map.getSize()
       const pt = map.project([request.lat, request.lng], map.getZoom())
@@ -128,7 +150,7 @@ function MapController({
     } else if (request.type === 'store') {
       map.setView([request.lat, request.lng], Math.max(map.getZoom(), 13))
     } else {
-      map.fitBounds(request.bounds)
+      fitBoundsInBand(map, request.bounds)
     }
   }, [request, map])
 
@@ -221,8 +243,6 @@ function App() {
   const [townOverlayH, setTownOverlayH] = useState<number | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const focusedSearch = useRef<'town' | 'product' | null>(null)
-  const [radius, setRadius] = useState(50)
-  const [locationRadius, setLocationRadius] = useState(0.5)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
@@ -262,16 +282,6 @@ function App() {
   const [searchProductOpen, setSearchProductOpen] = useState<SearchProductOpen | null>(null)
   const [invalidateSignal, setInvalidateSignal] = useState(0)
   const prevDetailOpen = useRef(false)
-
-  useEffect(() => {
-    fetch('/config.json')
-      .then((r) => r.json())
-      .then((data: Config) => {
-        setRadius(data.STORES_RADIUS)
-        setLocationRadius(data.LOCATION_RADIUS)
-      })
-      .catch(() => {})
-  }, [])
 
   useEffect(() => {
     if (!selectedStoreId) return
@@ -369,11 +379,9 @@ function App() {
     if (townStores.length === 0) return
     const lats = townStores.map((s) => s.latitude)
     const lngs = townStores.map((s) => s.longitude)
-    const dLat = radius / 111
-    const dLng = radius / (111 * Math.cos(((Math.min(...lats) + Math.max(...lats)) / 2 * Math.PI) / 180))
     const bounds: [[number, number], [number, number]] = [
-      [Math.min(...lats) - dLat, Math.min(...lngs) - dLng],
-      [Math.max(...lats) + dLat, Math.max(...lngs) + dLng],
+      [Math.min(...lats), Math.min(...lngs)],
+      [Math.max(...lats), Math.max(...lngs)],
     ]
     requestSeq.current += 1
     setMapRequest({ seq: requestSeq.current, type: 'town', bounds })
@@ -414,7 +422,7 @@ function App() {
         const lng = pos.coords.longitude
         setUserLocation([lat, lng])
         requestSeq.current += 1
-        setMapRequest({ seq: requestSeq.current, type: 'location', lat, lng, radiusKm: locationRadius })
+        setMapRequest({ seq: requestSeq.current, type: 'location', lat, lng, radiusKm: LOCATION_RADIUS_KM })
         fetch(`/api/town/${lat}/${lng}`)
           .then((r) => {
             if (!r.ok) throw new Error()
@@ -499,7 +507,7 @@ function App() {
           <>
             <Circle
               center={userLocation}
-              radius={locationRadius * 1000}
+              radius={LOCATION_RADIUS_KM * 1000}
               pathOptions={{
                 color: '#f97316',
                 weight: 2,
