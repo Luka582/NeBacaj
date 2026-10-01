@@ -109,7 +109,10 @@ What you can do from the panel:
   so set up SMTP before creating workers.
 
 Store and product deletes are soft deletes (they disappear from the public
-app) and also remove any uploaded ImageKit image.
+app) and also remove any uploaded ImageKit image. Deleting a **store** also
+deactivates every product and worker account for that store, and permanently
+deletes all of the store's uploaded images — the admin panel asks for
+confirmation and shows the affected counts before you delete.
 
 ## Accounts, recovery
 

@@ -18,7 +18,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .cleanup import cleanup_cutoff, cleanup_old_products, claim_run, run_key_for
-from .db import MaintenanceRun, Store, Product, User, UserRole, RecoveryCode, async_session, get_session, init_db, now_serbia
+from .db import MaintenanceRun, Store, Product, User, UserRole, RecoveryCode, SERBIA_TZ, async_session, get_session, init_db, now_serbia
 from .emailer import send_recovery_code, send_temporary_password
 from .images import delete_image, upload_image
 from .schemas import (
@@ -472,6 +472,19 @@ def _parse_form_json(data: str, model):
         raise HTTPException(status_code=422, detail=exc.errors()) from exc
 
 
+def _normalize_serbia_wall(value: datetime) -> datetime:
+    return value.astimezone(SERBIA_TZ).replace(tzinfo=None) if value.tzinfo is not None else value
+
+
+def _validate_expiration_or_422(expiration: datetime | None, creation: datetime) -> None:
+    if expiration is None:
+        return
+    exp = _normalize_serbia_wall(expiration)
+    cr = _normalize_serbia_wall(creation)
+    if exp < cr:
+        raise HTTPException(status_code=422, detail="expiration_date must be greater than or equal to creation_date")
+
+
 def _image_suffix(image: UploadFile) -> str:
     suffix = Path(image.filename or "").suffix.lower()
     if suffix.startswith(".") and 1 <= len(suffix) - 1 <= 5 and suffix[1:].isalnum():
@@ -799,6 +812,7 @@ async def create_product(
     product = Product(**body.model_dump(exclude={"image_url"}))
     db.add(product)
     await db.flush()
+    _validate_expiration_or_422(body.expiration_date, product.creation_date)
     await _apply_image(product, "/products", image, body.image_url, "image_url" in body.model_fields_set)
     await db.commit()
     return ProductResponse.model_validate(product)
@@ -827,6 +841,7 @@ async def update_product(
         await _get_store_or_404(fields["store_id"], db)
     for field, value in fields.items():
         setattr(product, field, value)
+    _validate_expiration_or_422(product.expiration_date, product.creation_date)
     await _apply_image(product, "/products", image, body.image_url, image_url_set)
     await db.commit()
     return ProductResponse.model_validate(product)

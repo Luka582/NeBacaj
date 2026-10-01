@@ -138,6 +138,17 @@ def handle_backend_error(error: BackendError) -> None:
     st.error(error.detail)
 
 
+def flash_message(kind: str, text: str) -> None:
+    st.session_state["_flash"] = (kind, text)
+
+
+def show_flash() -> None:
+    flash = st.session_state.pop("_flash", None)
+    if not flash:
+        return
+    getattr(st, flash[0])(flash[1])
+
+
 def get_backend() -> Backend:
     return Backend(st.session_state.backend_url, st.session_state.token)
 
@@ -317,13 +328,45 @@ def _render_store_edit(backend: Backend, store: dict) -> None:
         except BackendError as error:
             handle_backend_error(error)
 
-    if st.button("Delete store (soft)", key=f"{prefix}_delete"):
+    confirm_key = f"{prefix}_confirm_delete"
+    if st.button("Delete store AND its products and workers", key=f"{prefix}_delete"):
+        st.session_state[confirm_key] = True
+    elif st.session_state.get(confirm_key):
         try:
-            backend.delete_store(store["id"])
-            st.success("Store deleted.")
-            st.rerun()
-        except BackendError as error:
-            handle_backend_error(error)
+            product_count = len(backend.list_products(store["id"]))
+        except BackendError:
+            product_count = None
+        try:
+            worker_count = sum(
+                1
+                for w in backend.list_workers()
+                if w.get("store_id") == store["id"] and w.get("is_active")
+            )
+        except BackendError:
+            worker_count = None
+
+        def _fmt_count(n: int | None) -> str:
+            return "?" if n is None else str(n)
+
+        st.warning(
+            f"This deactivates the store, **{_fmt_count(product_count)} products** and "
+            f"**{_fmt_count(worker_count)} worker accounts**, and permanently deletes every "
+            "uploaded image. This cannot be undone. Continue?"
+        )
+        col_yes, col_no = st.columns(2)
+        with col_yes:
+            if st.button("Yes, delete", key=f"{prefix}_delete_yes"):
+                try:
+                    backend.delete_store(store["id"])
+                    st.session_state.pop(confirm_key, None)
+                    flash_message("success", "Store and its products/workers deleted.")
+                    st.rerun()
+                except BackendError as error:
+                    handle_backend_error(error)
+        with col_no:
+            if st.button("Cancel", key=f"{prefix}_delete_cancel"):
+                st.session_state.pop(confirm_key, None)
+                st.rerun()
 
 
 def _render_store_add(backend: Backend) -> None:
@@ -655,6 +698,8 @@ backend = get_backend()
 if st.session_state.get("must_change_password"):
     render_change_password(backend)
     st.stop()
+
+show_flash()
 
 page = render_sidebar()
 if page == "Stores":

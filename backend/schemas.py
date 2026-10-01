@@ -125,6 +125,12 @@ class ProductCreate(BaseModel):
     image_url: str | None = None
     expiration_date: datetime | None = None
 
+    @model_validator(mode="after")
+    def _check_product_prices(self) -> "ProductCreate":
+        if self.old_price < self.new_price:
+            raise ValueError("old_price must be greater than or equal to new_price")
+        return self
+
 
 class ProductUpdate(BaseModel):
     store_id: str | None = None
@@ -136,6 +142,12 @@ class ProductUpdate(BaseModel):
     image_url: str | None = None
     is_active: bool | None = None
     expiration_date: datetime | None = None
+
+    @model_validator(mode="after")
+    def _check_product_prices(self) -> "ProductUpdate":
+        if self.old_price is not None and self.new_price is not None and self.old_price < self.new_price:
+            raise ValueError("old_price must be greater than or equal to new_price")
+        return self
 
 
 class StoreResponse(BaseModel):
