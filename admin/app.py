@@ -241,9 +241,9 @@ def page_stores(backend: Backend) -> None:
             base = f"{item['name']} — {item['town']}, {item['street']}"
             return base + (" (inactive)" if item["id"] in inactive_ids else "")
 
-        labels = {store_label(s): s["id"] for s in all_stores}
-        label = st.selectbox("Select store", list(labels))
-        store_id = labels[label]
+        store_ids = [s["id"] for s in all_stores]
+        store_labels = {s["id"]: store_label(s) for s in all_stores}
+        store_id = st.selectbox("Select store", store_ids, format_func=lambda x: store_labels.get(x, x))
         try:
             store = backend.get_store(store_id)
         except BackendError as error:
@@ -508,12 +508,12 @@ def page_products(backend: Backend) -> None:
             st.info("No products in this store.")
         else:
             inactive_ids = {p["id"] for p in inactive}
-            labels = {
-                f"{p['name']} — {_price_label(p)}" + (" (inactive)" if p["id"] in inactive_ids else ""): p["id"]
+            product_ids = [p["id"] for p in all_products]
+            product_labels = {
+                p["id"]: f"{p['name']} — {_price_label(p)}" + (" (inactive)" if p["id"] in inactive_ids else "")
                 for p in all_products
             }
-            label = st.selectbox("Select product", list(labels))
-            product_id = labels[label]
+            product_id = st.selectbox("Select product", product_ids, format_func=lambda x: product_labels.get(x, x))
             try:
                 product = backend.get_product(product_id)
             except BackendError as error:
@@ -707,9 +707,10 @@ def page_workers(backend: Backend) -> None:
         if not workers:
             st.info("No workers yet.")
             return
-        workers_by_label = {f"{w['email']} — {w.get('name') or ''}": w["id"] for w in workers}
-        label = st.selectbox("Select worker", list(workers_by_label))
-        worker = next(w for w in workers if w["id"] == workers_by_label[label])
+        worker_ids = [w["id"] for w in workers]
+        worker_labels = {w["id"]: f"{w['email']} — {w.get('name') or ''}" for w in workers}
+        worker_id = st.selectbox("Select worker", worker_ids, format_func=lambda x: worker_labels.get(x, x))
+        worker = next(w for w in workers if w["id"] == worker_id)
         prefix = f"edit_worker_{worker['id']}"
         store_ids = [s["id"] for s in stores]
         store_labels = {s["id"]: f"{s['name']} — {s['town']}" for s in stores}
