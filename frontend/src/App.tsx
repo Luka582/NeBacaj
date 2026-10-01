@@ -286,6 +286,7 @@ function App() {
   const productSearchQueryRef = useRef('')
   productSearchQueryRef.current = productSearchQuery
   const [productResults, setProductResults] = useState<ProductSearchResult[]>([])
+  const productSearchRequestRef = useRef(0)
   const [productSearchLoading, setProductSearchLoading] = useState(false)
   const [productSearchError, setProductSearchError] = useState(false)
   const [searchProductOpen, setSearchProductOpen] = useState<SearchProductOpen | null>(null)
@@ -458,6 +459,7 @@ function App() {
 
   useEffect(() => {
     const q = productSearchQuery.trim()
+    const requestId = ++productSearchRequestRef.current
     const timer = window.setTimeout(
       () => {
         const params = new URLSearchParams()
@@ -476,14 +478,16 @@ function App() {
             return res.json()
           })
           .then((data: ProductSearchResult[]) => {
-            if (productSearchQueryRef.current !== q) return
+            if (productSearchQueryRef.current !== q || requestId !== productSearchRequestRef.current) return
             setProductResults(data)
           })
           .catch(() => {
-            if (productSearchQueryRef.current === q) setProductSearchError(true)
+            if (productSearchQueryRef.current === q && requestId === productSearchRequestRef.current)
+              setProductSearchError(true)
           })
           .finally(() => {
-            if (productSearchQueryRef.current === q) setProductSearchLoading(false)
+            if (productSearchQueryRef.current === q && requestId === productSearchRequestRef.current)
+              setProductSearchLoading(false)
           })
       },
       q ? 300 : 0,
