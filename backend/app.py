@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from fastapi import FastAPI, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import FastAPI, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 from sqlalchemy import delete, func, select
@@ -117,6 +117,11 @@ SERBIA_TZ = ZoneInfo("Europe/Belgrade")
 RECOVERY_CODE_TTL_MINUTES = 10
 RECOVERY_CODE_COOLDOWN_SECONDS = 60
 _recovery_code_cooldown: dict[str, float] = {}
+
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_COOLDOWN_SECONDS = 300
+_login_attempts: dict[str, list[float]] = {}
+DUMMY_PASSWORD_HASH = hash_password("nebacaj-dummy-password-for-timing")
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
@@ -545,14 +550,40 @@ async def _clear_image(entity: Store | Product) -> None:
     entity.image_file_id = None
 
 
+def _prune_login_attempts() -> None:
+    cutoff = datetime.now(SERBIA_TZ).timestamp() - LOGIN_COOLDOWN_SECONDS
+    stale = [key for key, stamps in _login_attempts.items() if not stamps or max(stamps) < cutoff]
+    for key in stale:
+        del _login_attempts[key]
+
+
 @app.post("/auth/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_session)) -> TokenResponse:
+async def login(
+    body: LoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_session),
+) -> TokenResponse:
     """POST /auth/login — authenticate and receive a bearer token."""
-    result = await db.execute(select(User).where(User.email == _normalize_email(body.email)))
+    email = _normalize_email(body.email)
+    client_ip = request.client.host if request.client else ""
+    key = f"{client_ip}|{email}"
+    now = datetime.now(SERBIA_TZ).timestamp()
+    _prune_login_attempts()
+    attempts = _login_attempts.get(key, [])
+    if len(attempts) >= LOGIN_MAX_ATTEMPTS and now - attempts[-1] < LOGIN_COOLDOWN_SECONDS:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed attempts, please wait before trying again",
+        )
+
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    if user is None or not verify_password(body.password, user.password_hash):
+    password_hash = user.password_hash if user is not None else DUMMY_PASSWORD_HASH
+    if not verify_password(body.password, password_hash):
+        attempts.append(now)
+        _login_attempts[key] = attempts[-LOGIN_MAX_ATTEMPTS:]
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    if not user.is_active:
+    if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="Account disabled")
     return TokenResponse(
         access_token=create_access_token(user),

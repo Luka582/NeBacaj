@@ -47,8 +47,8 @@ interface ApiMin {
   id: string
   name: string
   amount: number | null
-  old_price: number
-  new_price: number
+  old_price: number | null
+  new_price: number | null
   image_url?: string | null
   creation_date: string
 }
@@ -65,6 +65,15 @@ interface RowProduct extends ApiMin {
 }
 
 type FormMode = 'create' | 'edit' | 'reactivate'
+
+type PriceCase = 'free' | 'price' | 'discount' | 'none'
+
+const PRICE_CASES: { key: PriceCase; label: string }[] = [
+  { key: 'free', label: 'Besplatno' },
+  { key: 'price', label: 'Cena' },
+  { key: 'discount', label: 'Sa popustom' },
+  { key: 'none', label: 'Bez cene' },
+]
 
 interface ProductFormProps {
   mode: FormMode
@@ -174,7 +183,8 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [oldPrice, setOldPrice] = useState('')
-  const [newPrice, setNewPrice] = useState('')
+  const [price, setPrice] = useState('')
+  const [priceCase, setPriceCase] = useState<PriceCase>(mode === 'create' ? 'price' : 'none')
   const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -206,8 +216,18 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
         if (!alive) return
         setName(p.name)
         setAmount(p.amount != null ? String(p.amount) : '')
-        setOldPrice(String(p.old_price))
-        setNewPrice(String(p.new_price))
+        if (p.new_price == null) {
+          setPriceCase('none')
+        } else if (p.new_price === 0) {
+          setPriceCase('free')
+        } else if (p.old_price != null && p.old_price > p.new_price) {
+          setPriceCase('discount')
+          setOldPrice(String(p.old_price))
+          setPrice(String(p.new_price))
+        } else {
+          setPriceCase('price')
+          setPrice(String(p.new_price))
+        }
         setDescription(p.description ?? '')
         setImageUrl(p.image_url ?? null)
       })
@@ -240,22 +260,34 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
     event.preventDefault()
     setError(null)
     const trimmed = name.trim()
-    const op = Number(oldPrice)
-    const np = Number(newPrice)
     const amt = amount.trim() === '' ? null : Number(amount)
     if (!trimmed) {
       setError('Unesite naziv proizvoda.')
       return
     }
-    if (!Number.isFinite(op) || !Number.isFinite(np) || op < 0 || np < 0 || op < np) {
-      setError('Stara cena mora biti veća ili jednaka novoj ceni.')
-      return
+    const priceNum = priceCase === 'free' || priceCase === 'none' ? null : Number(price)
+    const oldPriceNum = priceCase === 'discount' ? Number(oldPrice) : null
+    if (priceCase === 'price' || priceCase === 'discount') {
+      if (!price.trim() || !Number.isFinite(priceNum) || (priceNum as number) <= 0) {
+        setError('Unesite novu cenu veću od 0.')
+        return
+      }
+    }
+    if (priceCase === 'discount') {
+      if (!oldPrice.trim() || !Number.isFinite(oldPriceNum) || (oldPriceNum as number) <= (priceNum as number)) {
+        setError('Stara cena mora biti veća od nove cene.')
+        return
+      }
     }
     if (amt != null && (!Number.isInteger(amt) || amt < 1)) {
       setError('Količina mora biti ceo broj od 1 naviše.')
       return
     }
-    const payload: Record<string, unknown> = { name: trimmed, old_price: op, new_price: np }
+    const payload: Record<string, unknown> = {
+      name: trimmed,
+      old_price: priceCase === 'discount' ? Number(oldPrice) : null,
+      new_price: priceCase === 'free' ? 0 : priceCase === 'none' ? null : Number(price),
+    }
     if (mode === 'create') payload.store_id = storeId
     if (amt != null) payload.amount = amt
     if (description.trim() !== '') payload.description = description.trim()
@@ -350,33 +382,75 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
             className={inputClass}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">Stara cena (RSD) *</label>
-            <input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              value={oldPrice}
-              onChange={(e) => setOldPrice(e.target.value)}
-              placeholder="0"
-              className={inputClass}
-            />
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-500">Cena</label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {PRICE_CASES.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setPriceCase(c.key)}
+                className={`rounded-lg border px-1 py-2 text-center text-xs font-semibold transition ${
+                  priceCase === c.key
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 active:bg-slate-100'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">Nova cena (RSD) *</label>
-            <input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              value={newPrice}
-              onChange={(e) => setNewPrice(e.target.value)}
-              placeholder="0"
-              className={inputClass}
-            />
-          </div>
+          {priceCase === 'price' && (
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-semibold text-slate-500">Nova cena (RSD) *</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="npr. 150"
+                className={inputClass}
+              />
+            </div>
+          )}
+          {priceCase === 'discount' && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500">Stara cena (RSD) *</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={oldPrice}
+                  onChange={(e) => setOldPrice(e.target.value)}
+                  placeholder="npr. 250"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500">Nova cena (RSD) *</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="npr. 150"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          )}
+          {priceCase === 'free' && (
+            <p className="mt-2 text-xs text-slate-500">Proizvod će biti označen kao besplatan.</p>
+          )}
+          {priceCase === 'none' && (
+            <p className="mt-2 text-xs text-slate-500">Cena neće biti prikazana.</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-500">Količina (opciono)</label>
@@ -828,12 +902,14 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-900">{p.name}</p>
                         <div className="mt-0.5 flex items-center gap-2">
-                          {p.new_price === 0 ? (
+                          {p.new_price == null ? (
+                            <p className="text-xs text-slate-400">Cena nije istaknuta</p>
+                          ) : p.new_price === 0 ? (
                             <FreeTag />
                           ) : (
                             <p className="text-sm font-bold text-red-600">{formatPrice(p.new_price)}</p>
                           )}
-                          {p.old_price > p.new_price && (
+                          {p.old_price != null && p.new_price != null && p.old_price > p.new_price && (
                             <p className="text-xs text-slate-400 line-through">{formatPrice(p.old_price)}</p>
                           )}
                         </div>

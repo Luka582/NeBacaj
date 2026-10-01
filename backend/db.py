@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from enum import StrEnum
 from uuid import uuid4
@@ -18,7 +19,7 @@ SERBIA_TZ = ZoneInfo("Europe/Belgrade")
 def now_serbia() -> datetime:
     return datetime.now(SERBIA_TZ)
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=os.getenv("SQL_ECHO") == "1")
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -87,8 +88,8 @@ class Product(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     store_id: Mapped[str] = mapped_column(String(36), ForeignKey("stores.id"), nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=True)
-    old_price: Mapped[float] = mapped_column(Float, nullable=False)
-    new_price: Mapped[float] = mapped_column(Float, nullable=False)
+    old_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    new_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -143,6 +144,16 @@ async def init_db() -> None:
             columns = (await conn.exec_driver_sql(f"PRAGMA table_info({table})")).fetchall()
             if not any(column[1] == "image_file_id" for column in columns):
                 await conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN image_file_id TEXT")
+
+        product_columns = (await conn.exec_driver_sql("PRAGMA table_info(products)")).fetchall()
+        if any(column[1] == "old_price" and column[3] == 1 for column in product_columns):
+            await conn.exec_driver_sql("ALTER TABLE products RENAME TO products_legacy")
+            await conn.run_sync(Base.metadata.create_all)
+            await conn.exec_driver_sql(
+                "INSERT INTO products (id, store_id, amount, old_price, new_price, name, description, image_url, image_file_id, is_active, expiration_date, creation_date) "
+                "SELECT id, store_id, amount, old_price, new_price, name, description, image_url, image_file_id, is_active, expiration_date, creation_date FROM products_legacy"
+            )
+            await conn.exec_driver_sql("DROP TABLE products_legacy")
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

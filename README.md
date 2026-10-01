@@ -69,6 +69,13 @@ Start the backend (port 8000) in one terminal:
 uv run python -m backend.main
 ```
 
+By default it binds `127.0.0.1` with auto-reload off. To expose it on the
+network or enable dev reload:
+
+```bash
+HOST=0.0.0.0 RELOAD=1 uv run python -m backend.main
+```
+
 Start the frontend dev server (port 5173) in another terminal:
 
 ```bash
@@ -99,9 +106,11 @@ What you can do from the panel:
 - **Stores** — create and edit stores (name, address, type, link, phone,
   description), set per-day working hours (0 minutes = closed that day; 24/7 and
   09:00–17:00 presets), set or upload an image, and soft-delete.
-- **Products** — add products to a store, set old/new price, amount and
-  expiration date, upload an image, and soft-delete. Old price must be greater
-  than or equal to the new price.
+- **Products** — add products to a store, set one of four pricing cases
+  (besplatno / cena / cena sa popustom / bez cene), amount and expiration date,
+  upload an image, and soft-delete. Prices are nullable:
+  `new_price = 0` → free, `new_price > 0` with `old_price = null` → plain price,
+  `old_price > new_price` → discounted, both `null` → no price shown.
 - **Workers** — create worker accounts, edit them, reset passwords and
   soft-delete. Creating or resetting a worker emails them a **temporary
   password** — but only if SMTP is configured (`AUTO_REPLY_EMAIL` +

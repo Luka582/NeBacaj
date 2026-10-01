@@ -33,8 +33,8 @@ interface StoreDetailData {
 interface Product {
   id: string
   amount?: number | null
-  old_price: number
-  new_price: number
+  old_price: number | null
+  new_price: number | null
   name: string
   image_url?: string | null
   creation_date: string
@@ -405,19 +405,21 @@ function StoreDetail({
                           )}
                         </div>
                         <div className="shrink-0 text-right">
-                          {p.new_price === 0 ? (
+                          {p.new_price == null ? (
+                            <p className="text-xs text-slate-400">Cena nije istaknuta</p>
+                          ) : p.new_price === 0 ? (
                             <FreeTag />
                           ) : (
                             <p className="text-sm font-bold text-red-600">{formatPrice(p.new_price)}</p>
                           )}
-                          {p.old_price > p.new_price && p.new_price !== 0 && (
+                          {p.old_price != null && p.new_price != null && p.new_price !== 0 && p.old_price > p.new_price && (
                             <>
                               <span className="mt-0.5 inline-block rounded-full bg-red-500 px-1.5 py-px text-[10px] font-bold text-white">
                                 −{Math.round((1 - p.new_price / p.old_price) * 100)}%
                               </span>
                             </>
                           )}
-                          {p.old_price > p.new_price && (
+                          {p.old_price != null && p.new_price != null && p.old_price > p.new_price && (
                             <>
                               <p className="text-xs text-slate-400 line-through">{formatPrice(p.old_price)}</p>
                             </>

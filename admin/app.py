@@ -431,6 +431,22 @@ def parse_expiration(text: str) -> str | None:
     return dt.date.fromisoformat(text).isoformat()
 
 
+def _price_value(value: Any) -> float:
+    return float(value) if value is not None else 0.0
+
+
+def _price_label(product: dict) -> str:
+    new_price = product.get("new_price")
+    old_price = product.get("old_price")
+    if new_price is None:
+        return "no price"
+    if new_price == 0:
+        return "free"
+    if old_price is not None and old_price > new_price:
+        return f"{old_price:.0f} -> {new_price:.0f} RSD"
+    return f"{new_price:.0f} RSD"
+
+
 def page_products(backend: Backend) -> None:
     st.subheader("Products")
     try:
@@ -461,7 +477,7 @@ def page_products(backend: Backend) -> None:
         else:
             inactive_ids = {p["id"] for p in inactive}
             labels = {
-                f"{p['name']} — {p['old_price']:.0f} -> {p['new_price']:.0f} RSD" + (" (inactive)" if p["id"] in inactive_ids else ""): p["id"]
+                f"{p['name']} — {_price_label(p)}" + (" (inactive)" if p["id"] in inactive_ids else ""): p["id"]
                 for p in all_products
             }
             label = st.selectbox("Select product", list(labels))
@@ -480,8 +496,8 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
     prefix = f"edit_prod_{product['id']}"
     seed(prefix, product["id"], {
         "name": product["name"],
-        "old_price": float(product["old_price"]),
-        "new_price": float(product["new_price"]),
+        "old_price": _price_value(product["old_price"]),
+        "new_price": _price_value(product["new_price"]),
         "amount": product.get("amount") or 0,
         "description": product.get("description") or "",
         "expiration": (product.get("expiration_date") or "")[:10],

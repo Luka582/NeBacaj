@@ -6,8 +6,8 @@ interface ProductData {
   id: string
   store_id: string
   amount?: number | null
-  old_price: number
-  new_price: number
+  old_price: number | null
+  new_price: number | null
   name: string
   description?: string | null
   image_url?: string | null
@@ -86,10 +86,16 @@ function ProductDetail({
             <button
               type="button"
               onClick={() => {
+                const sharePrice =
+                  product.new_price == null
+                    ? 'informacije o ceni nisu istaknute'
+                    : product.new_price === 0
+                      ? 'besplatno'
+                      : `po ceni ${formatPrice(product.new_price)}`
                 navigator
                   .share({
-                    title: `${product.name} — ${formatPrice(product.new_price)}`,
-                    text: `Evo proizvoda na NeBacaj: ${product.name} po ceni ${formatPrice(product.new_price)} (${storeName}).`,
+                    title: `${product.name} — ${sharePrice}`,
+                    text: `Evo proizvoda na NeBacaj: ${product.name} ${sharePrice} (${storeName}).`,
                     url: window.location.href,
                   })
                   .catch(() => {})
@@ -157,16 +163,21 @@ function ProductDetail({
               )}
               <div className="flex items-end justify-between gap-2">
                 <div>
-                  {product.new_price === 0 ? (
+                  {product.new_price == null ? (
+                    <p className="text-xl font-bold text-slate-400">Cena nije istaknuta</p>
+                  ) : product.new_price === 0 ? (
                     <FreeTag large />
                   ) : (
                     <p className="text-3xl font-extrabold text-red-600">{formatPrice(product.new_price)}</p>
                   )}
-                  {product.old_price > product.new_price && (
+                  {product.old_price != null && product.new_price != null && product.old_price > product.new_price && (
                     <p className="mt-1 text-base text-slate-400 line-through">{formatPrice(product.old_price)}</p>
                   )}
                 </div>
-                {product.new_price !== 0 && product.old_price > product.new_price && (
+                {product.old_price != null &&
+                  product.new_price != null &&
+                  product.new_price !== 0 &&
+                  product.old_price > product.new_price && (
                   <div className="shrink-0 rounded-xl bg-red-500 px-2.5 py-1.5 text-center">
                     <p className="text-lg leading-none font-extrabold text-white">
                       −{Math.round((1 - product.new_price / product.old_price) * 100)}%

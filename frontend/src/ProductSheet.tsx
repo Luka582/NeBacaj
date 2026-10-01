@@ -7,8 +7,8 @@ export interface ProductSearchResult {
   product_id: string
   product_name: string
   amount?: number | null
-  old_price: number
-  new_price: number
+  old_price: number | null
+  new_price: number | null
   image_url?: string | null
   store_id: string
   store_name: string
@@ -213,17 +213,19 @@ export default function ProductSheet({
               </p>
             </div>
             <div className="shrink-0 text-right">
-              {r.new_price === 0 ? (
+              {r.new_price == null ? (
+                <p className="text-xs text-slate-400">Cena nije istaknuta</p>
+              ) : r.new_price === 0 ? (
                 <FreeTag />
               ) : (
                 <p className="text-sm font-bold text-red-600">{formatPrice(r.new_price)}</p>
               )}
-              {r.old_price > r.new_price && r.new_price !== 0 && (
+              {r.old_price != null && r.new_price != null && r.new_price !== 0 && r.old_price > r.new_price && (
                 <span className="mt-0.5 inline-block rounded-full bg-red-500 px-1.5 py-px text-[10px] font-bold text-white">
                   −{Math.round((1 - r.new_price / r.old_price) * 100)}%
                 </span>
               )}
-              {r.old_price > r.new_price && (
+              {r.old_price != null && r.new_price != null && r.old_price > r.new_price && (
                 <p className="text-xs text-slate-400 line-through">{formatPrice(r.old_price)}</p>
               )}
             </div>

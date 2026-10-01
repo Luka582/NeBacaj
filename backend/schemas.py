@@ -118,8 +118,8 @@ class StoreUpdate(BaseModel):
 class ProductCreate(BaseModel):
     store_id: str
     amount: int | None = Field(default=None, ge=1)
-    old_price: float = Field(ge=0)
-    new_price: float = Field(ge=0)
+    old_price: float | None = Field(default=None, ge=0)
+    new_price: float | None = Field(default=None, ge=0)
     name: str
     description: str | None = None
     image_url: str | None = None
@@ -127,7 +127,7 @@ class ProductCreate(BaseModel):
 
     @model_validator(mode="after")
     def _check_product_prices(self) -> "ProductCreate":
-        if self.old_price < self.new_price:
+        if self.old_price is not None and self.new_price is not None and self.old_price < self.new_price:
             raise ValueError("old_price must be greater than or equal to new_price")
         return self
 
@@ -202,8 +202,8 @@ class ProductResponse(BaseModel):
     id: str
     store_id: str
     amount: int | None = Field(default=None, ge=1)
-    old_price: float = Field(ge=0)
-    new_price: float = Field(ge=0)
+    old_price: float | None = Field(default=None, ge=0)
+    new_price: float | None = Field(default=None, ge=0)
     name: str
     description: str | None
     image_url: str | None = None
@@ -215,7 +215,7 @@ class ProductResponse(BaseModel):
 
     @model_validator(mode="after")
     def _check_product_constraints(self) -> "ProductResponse":
-        if self.old_price < self.new_price:
+        if self.old_price is not None and self.new_price is not None and self.old_price < self.new_price:
             raise ValueError("old_price must be greater than or equal to new_price")
         if self.expiration_date is not None and self.expiration_date < self.creation_date:
             raise ValueError("expiration_date must be greater than or equal to creation_date")
@@ -224,8 +224,8 @@ class ProductResponse(BaseModel):
 class ProductMinimalResponse(BaseModel):
     id: str
     amount: int | None = Field(default=None, ge=1)
-    old_price: float = Field(ge=0)
-    new_price: float = Field(ge=0)
+    old_price: float | None = Field(default=None, ge=0)
+    new_price: float | None = Field(default=None, ge=0)
     name: str
     image_url: str | None = None
     creation_date: datetime
@@ -234,7 +234,7 @@ class ProductMinimalResponse(BaseModel):
 
     @model_validator(mode="after")
     def _check_price_constraints(self) -> "ProductMinimalResponse":
-        if self.old_price < self.new_price:
+        if self.old_price is not None and self.new_price is not None and self.old_price < self.new_price:
             raise ValueError("old_price must be greater than or equal to new_price")
         return self
 
@@ -243,8 +243,8 @@ class ProductSearchResult(BaseModel):
     product_id: str
     product_name: str
     amount: int | None = Field(default=None, ge=1)
-    old_price: float = Field(ge=0)
-    new_price: float = Field(ge=0)
+    old_price: float | None = Field(default=None, ge=0)
+    new_price: float | None = Field(default=None, ge=0)
     image_url: str | None = None
     store_id: str
     store_name: str
