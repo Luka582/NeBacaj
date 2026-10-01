@@ -435,6 +435,38 @@ def _price_value(value: Any) -> float:
     return float(value) if value is not None else 0.0
 
 
+PRICE_CASES = ["free", "price", "discount", "none"]
+
+PRICE_CASE_LABELS = {
+    "free": "Besplatno",
+    "price": "Cena",
+    "discount": "Cena sa popustom",
+    "none": "Bez cene",
+}
+
+
+def _price_case_from_product(product: dict) -> str:
+    new_price = product.get("new_price")
+    old_price = product.get("old_price")
+    if new_price is None:
+        return "none"
+    if new_price == 0:
+        return "free"
+    if old_price is not None and old_price > new_price:
+        return "discount"
+    return "price"
+
+
+def _price_pair(price_case: str, old_price: Any, new_price: Any) -> tuple[Any, Any]:
+    if price_case == "free":
+        return None, 0
+    if price_case == "none":
+        return None, None
+    new_value = round(float(new_price), 2)
+    old_value = round(float(old_price), 2) if price_case == "discount" else None
+    return old_value, new_value
+
+
 def _price_label(product: dict) -> str:
     new_price = product.get("new_price")
     old_price = product.get("old_price")
@@ -502,14 +534,26 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
         "description": product.get("description") or "",
         "expiration": (product.get("expiration_date") or "")[:10],
         "is_active": product["is_active"],
+        "price_case": _price_case_from_product(product),
         "remove": False,
     })
+    price_case = st.segmented_control(
+        "Price",
+        options=PRICE_CASES,
+        format_func=lambda k: PRICE_CASE_LABELS[k],
+        default="price",
+        key=f"{prefix}_price_case",
+    )
     with st.form(f"form_{prefix}"):
         name = st.text_input("Name", key=f"{prefix}_name")
+        old_price = None
+        new_price = None
+        if price_case in ("price", "discount"):
+            new_price = st.number_input("Nova cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_new_price")
+        if price_case == "discount":
+            old_price = st.number_input("Stara cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_old_price")
         col1, col2 = st.columns(2)
         with col1:
-            old_price = st.number_input("Old price", min_value=0.0, format="%.2f", key=f"{prefix}_old_price")
-            new_price = st.number_input("New price", min_value=0.0, format="%.2f", key=f"{prefix}_new_price")
             amount = st.number_input("Amount", min_value=0, key=f"{prefix}_amount")
             is_active = st.checkbox("Active", key=f"{prefix}_is_active")
         with col2:
@@ -519,14 +563,15 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
         submitted = st.form_submit_button("Save changes")
 
     if submitted:
-        if float(old_price) < float(new_price):
-            st.error("Old price must be greater than or equal to the new price.")
+        old_price_v, new_price_v = _price_pair(price_case, old_price, new_price)
+        if price_case == "discount" and old_price_v <= new_price_v:
+            st.error("Stara cena mora biti veća od nove cene.")
             return
         payload: dict[str, Any] = {
             "store_id": store_id,
             "name": name,
-            "old_price": old_price,
-            "new_price": new_price,
+            "old_price": old_price_v,
+            "new_price": new_price_v,
             "amount": int(amount) or None,
             "is_active": bool(is_active),
         }
@@ -559,16 +604,28 @@ def _render_product_add(backend: Backend, default_store_id: str, store_ids: list
     prefix = "new_product"
     if st.session_state.get(f"{prefix}_seed") != "seed":
         st.session_state[f"{prefix}_store"] = default_store_id
+        st.session_state[f"{prefix}_price_case"] = "price"
         st.session_state[f"{prefix}_seed"] = "seed"
+    price_case = st.segmented_control(
+        "Price",
+        options=PRICE_CASES,
+        format_func=lambda k: PRICE_CASE_LABELS[k],
+        default="price",
+        key=f"{prefix}_price_case",
+    )
     with st.form("form_new_product"):
         store_id = st.selectbox(
             "Store", store_ids, format_func=lambda x: store_labels.get(x, x), key=f"{prefix}_store"
         )
         name = st.text_input("Name", key=f"{prefix}_name")
+        old_price = None
+        new_price = None
+        if price_case in ("price", "discount"):
+            new_price = st.number_input("Nova cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_new_price")
+        if price_case == "discount":
+            old_price = st.number_input("Stara cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_old_price")
         col1, col2 = st.columns(2)
         with col1:
-            old_price = st.number_input("Old price", min_value=0.0, format="%.2f", key=f"{prefix}_old_price")
-            new_price = st.number_input("New price", min_value=0.0, format="%.2f", key=f"{prefix}_new_price")
             amount = st.number_input("Amount", min_value=0, key=f"{prefix}_amount")
         with col2:
             description = st.text_area("Description", key=f"{prefix}_description")
@@ -580,14 +637,15 @@ def _render_product_add(backend: Backend, default_store_id: str, store_ids: list
         if not name.strip():
             st.error("Name is required.")
             return
-        if float(old_price) < float(new_price):
-            st.error("Old price must be greater than or equal to the new price.")
+        old_price_v, new_price_v = _price_pair(price_case, old_price, new_price)
+        if price_case == "discount" and old_price_v <= new_price_v:
+            st.error("Stara cena mora biti veća od nove cene.")
             return
         payload: dict[str, Any] = {
             "store_id": store_id,
             "name": name,
-            "old_price": old_price,
-            "new_price": new_price,
+            "old_price": old_price_v,
+            "new_price": new_price_v,
             "amount": int(amount) or None,
         }
         if description.strip():
