@@ -17,4 +17,5 @@ dependencies = [
     "python-multipart>=0.0.9",
     "streamlit>=1.40",
     "apscheduler>=3.10",
+    "httpx>=0.28.1",
 ]

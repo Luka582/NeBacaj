@@ -490,25 +490,51 @@ def _validate_expiration_or_422(expiration: datetime | None, creation: datetime)
         raise HTTPException(status_code=422, detail="expiration_date must be greater than or equal to creation_date")
 
 
-def _image_suffix(image: UploadFile) -> str:
+IMAGE_MAGIC: list[tuple[bytes, str]] = [
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+    (b"RIFF", "image/webp"),
+]
+
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
+
+MIME_TO_EXTENSION = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/bmp": ".bmp",
+}
+
+
+def _sniff_image_mime(data: bytes) -> str | None:
+    for magic, mime in IMAGE_MAGIC:
+        if data.startswith(magic):
+            if magic == b"RIFF" and data[8:12] != b"WEBP":
+                continue
+            return mime
+    return None
+
+
+def _image_suffix(image: UploadFile, mime: str | None) -> str:
     suffix = Path(image.filename or "").suffix.lower()
-    if suffix.startswith(".") and 1 <= len(suffix) - 1 <= 5 and suffix[1:].isalnum():
+    if suffix in IMAGE_EXTENSIONS:
         return suffix
-    subtype = (image.content_type or "").split("/")[-1].lower()
-    if subtype.isalnum():
-        return f".{subtype}"
-    return ".jpg"
+    return MIME_TO_EXTENSION.get(mime or "", ".jpg")
 
 
-async def _read_valid_image(image: UploadFile) -> bytes:
-    if not (image.content_type or "").startswith("image/"):
-        raise HTTPException(status_code=400, detail="Uploaded file must be an image")
-    data = await image.read()
+async def _read_valid_image(image: UploadFile) -> tuple[bytes, str]:
+    data = await image.read(MAX_IMAGE_BYTES + 1)
     if not data:
         raise HTTPException(status_code=400, detail="Uploaded image is empty")
     if len(data) > MAX_IMAGE_BYTES:
         raise HTTPException(status_code=413, detail="Image too large (max 10 MB)")
-    return data
+    mime = _sniff_image_mime(data)
+    if mime is None:
+        raise HTTPException(status_code=400, detail="Uploaded file is not a recognized image")
+    return data, mime
 
 
 async def _apply_image(
@@ -522,13 +548,13 @@ async def _apply_image(
     if image is not None:
         if image_url_set:
             raise HTTPException(status_code=400, detail="Provide either image_url or an image file, not both")
-        data = await _read_valid_image(image)
+        data, mime = await _read_valid_image(image)
         try:
             url, file_id = await upload_image(
                 data,
-                f"{entity.id}-{uuid4().hex[:8]}{_image_suffix(image)}",
+                f"{entity.id}-{uuid4().hex[:8]}{_image_suffix(image, mime)}",
                 folder,
-                image.content_type or "application/octet-stream",
+                mime,
             )
         except Exception as exc:
             raise HTTPException(status_code=502, detail="Image upload failed") from exc

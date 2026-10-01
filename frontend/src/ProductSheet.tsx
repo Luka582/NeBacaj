@@ -52,6 +52,7 @@ export default function ProductSheet({
   onExpandedChange,
 }: ProductSheetProps) {
   const [dragHeight, setDragHeight] = useState<number | null>(null)
+  const [dragging, setDragging] = useState(false)
   const [vh] = useState(() => window.innerHeight)
   const dragRef = useRef<{ startY: number; wasExpanded: boolean } | null>(null)
 
@@ -62,10 +63,8 @@ export default function ProductSheet({
     }
   }, [expanded, focusedSearch, onSearchFocused])
 
-  function beginDrag(e: React.PointerEvent) {
-    if (e.button !== 0) return
-    dragRef.current = { startY: e.clientY, wasExpanded: expanded }
-    setDragHeight(expanded ? window.innerHeight : PEEK_HEIGHT)
+  useEffect(() => {
+    if (!dragging) return
     const move = (ev: PointerEvent) => {
       const start = dragRef.current
       if (!start) return
@@ -83,13 +82,28 @@ export default function ProductSheet({
       }
       dragRef.current = null
       setDragHeight(null)
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', end)
-      window.removeEventListener('pointercancel', end)
+      setDragging(false)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', end)
     window.addEventListener('pointercancel', end)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+    }
+  }, [dragging, onExpandedChange])
+
+  function beginDrag(e: React.PointerEvent) {
+    if (e.button !== 0) return
+    try {
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+    } catch {
+      /* pointer already released */
+    }
+    dragRef.current = { startY: e.clientY, wasExpanded: expanded }
+    setDragHeight(expanded ? window.innerHeight : PEEK_HEIGHT)
+    setDragging(true)
   }
 
   const hasQuery = query.trim().length > 0

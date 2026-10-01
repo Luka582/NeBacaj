@@ -57,8 +57,6 @@ class Backend:
 
     @staticmethod
     def _sniff_image_type(content: bytes, declared: str | None) -> str:
-        if declared and declared.startswith("image/"):
-            return declared
         if content[:8] == b"\x89PNG\r\n\x1a\n":
             return "image/png"
         if content[:3] == b"\xff\xd8\xff":
@@ -67,6 +65,8 @@ class Backend:
             return "image/gif"
         if content[:4] == b"RIFF" and content[8:12] == b"WEBP":
             return "image/webp"
+        if declared and declared.startswith("image/"):
+            return declared
         return "application/octet-stream"
 
     def _multipart(self, payload: dict[str, Any], image=None) -> dict[str, Any]:
