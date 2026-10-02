@@ -602,10 +602,12 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
 
 def _render_product_add(backend: Backend, default_store_id: str, store_ids: list[str], store_labels: dict) -> None:
     prefix = "new_product"
-    if st.session_state.get(f"{prefix}_seed") != "seed":
+    upstream = st.session_state.get(f"{prefix}_upstream")
+    if st.session_state.get(f"{prefix}_seed") != "seed" or upstream != default_store_id:
         st.session_state[f"{prefix}_store"] = default_store_id
         st.session_state[f"{prefix}_price_case"] = "price"
         st.session_state[f"{prefix}_seed"] = "seed"
+        st.session_state[f"{prefix}_upstream"] = default_store_id
     price_case = st.segmented_control(
         "Price",
         options=PRICE_CASES,
