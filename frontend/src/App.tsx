@@ -8,7 +8,7 @@ import ProductSheet, { type ProductSearchResult, SIDE_PANEL_WIDTH } from './Prod
 import SettingsMenu from './SettingsMenu'
 import MyProducts from './MyProducts'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
-import { cropImageUrl } from './format'
+import { cropImageUrl, formatMinutes, getSerbiaMinutes } from './format'
 
 const CARTO_KEY = __CARTO_API_KEY__
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
@@ -219,13 +219,6 @@ const userLocationIcon = L.divIcon({
   `,
 })
 
-function getSerbiaMinutes(): number {
-  const now = new Date()
-  const serbiaOffset = 120
-  const serbiaTime = new Date(now.getTime() + (now.getTimezoneOffset() + serbiaOffset) * 60000)
-  return serbiaTime.getHours() * 60 + serbiaTime.getMinutes()
-}
-
 function isStoreDimmed(store: Store, nowMinutes: number): boolean {
   const closed = isStoreClosed(store, nowMinutes)
   return closed || store.today_products_count === 0
@@ -236,12 +229,6 @@ function isStoreClosed(store: Store, nowMinutes: number): boolean {
   const close = store.today_closing_minute
   if (close > 1440 && nowMinutes < close - 1440) return false
   return nowMinutes < open || nowMinutes >= close
-}
-
-function formatMinutes(minutes: number): string {
-  const h = Math.floor((minutes % 1440) / 60).toString().padStart(2, '0')
-  const m = (minutes % 60).toString().padStart(2, '0')
-  return `${h}:${m}`
 }
 
 function App() {
