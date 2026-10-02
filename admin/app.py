@@ -201,7 +201,7 @@ def render_change_password(backend: Backend) -> None:
                 st.error(error.detail)
                 return
             st.session_state.must_change_password = False
-            st.success("Password changed.")
+            flash_message("success", "Password changed.")
             st.rerun()
 
 
@@ -414,7 +414,7 @@ def _render_store_add(backend: Backend) -> None:
         apply_image_choice(payload, image, url, remove=False)
         try:
             backend.create_store(payload, image)
-            st.success("Store created.")
+            flash_message("success", "Store created.")
             st.session_state[f"{prefix}_seed"] = None
             st.rerun()
         except BackendError as error:
@@ -594,7 +594,7 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
     if st.button("Delete product (soft)", key=f"{prefix}_delete"):
         try:
             backend.delete_product(product["id"])
-            st.success("Product deleted.")
+            flash_message("success", "Product deleted.")
             st.rerun()
         except BackendError as error:
             handle_backend_error(error)
@@ -602,10 +602,12 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
 
 def _render_product_add(backend: Backend, default_store_id: str, store_ids: list[str], store_labels: dict) -> None:
     prefix = "new_product"
-    if st.session_state.get(f"{prefix}_seed") != "seed":
+    upstream = st.session_state.get(f"{prefix}_upstream")
+    if st.session_state.get(f"{prefix}_seed") != "seed" or upstream != default_store_id:
         st.session_state[f"{prefix}_store"] = default_store_id
         st.session_state[f"{prefix}_price_case"] = "price"
         st.session_state[f"{prefix}_seed"] = "seed"
+        st.session_state[f"{prefix}_upstream"] = default_store_id
     price_case = st.segmented_control(
         "Price",
         options=PRICE_CASES,
@@ -660,7 +662,7 @@ def _render_product_add(backend: Backend, default_store_id: str, store_ids: list
         apply_image_choice(payload, image, url, remove=False)
         try:
             backend.create_product(payload, image)
-            st.success("Product created.")
+            flash_message("success", "Product created.")
             st.session_state[f"{prefix}_seed"] = None
             st.rerun()
         except BackendError as error:
@@ -698,7 +700,7 @@ def page_workers(backend: Backend) -> None:
             else:
                 try:
                     backend.create_worker({"email": email, "name": name or None, "store_id": store_id})
-                    st.success("Worker created. A temporary password was sent by email (if SMTP is configured).")
+                    flash_message("success", "Worker created. Temporary password emailed.")
                     st.rerun()
                 except BackendError as error:
                     handle_backend_error(error)
@@ -735,7 +737,7 @@ def page_workers(backend: Backend) -> None:
                         "email": email, "name": name or None,
                         "store_id": store_id, "is_active": bool(is_active),
                     })
-                    st.success("Worker updated.")
+                    flash_message("success", "Worker updated.")
                     st.rerun()
                 except BackendError as error:
                     handle_backend_error(error)
@@ -751,7 +753,7 @@ def page_workers(backend: Backend) -> None:
             if st.button("Delete worker (soft)", key=f"{prefix}_delete"):
                 try:
                     backend.delete_worker(worker["id"])
-                    st.success("Worker deleted.")
+                    flash_message("success", "Worker deleted.")
                     st.rerun()
                 except BackendError as error:
                     handle_backend_error(error)

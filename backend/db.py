@@ -6,7 +6,7 @@ from enum import StrEnum
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, Integer, Enum
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, Integer, Enum, event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from collections.abc import AsyncGenerator
@@ -21,6 +21,13 @@ def now_serbia() -> datetime:
 
 engine = create_async_engine(DATABASE_URL, echo=os.getenv("SQL_ECHO") == "1")
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+@event.listens_for(engine.sync_engine, "connect")
+def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
 class Base(DeclarativeBase):
@@ -86,7 +93,7 @@ class Product(Base):
     __tablename__ = "products"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    store_id: Mapped[str] = mapped_column(String(36), ForeignKey("stores.id"), nullable=False)
+    store_id: Mapped[str] = mapped_column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
     amount: Mapped[int] = mapped_column(Integer, nullable=True)
     old_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     new_price: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -96,7 +103,7 @@ class Product(Base):
     image_file_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     expiration_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    creation_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
+    creation_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia, index=True)
 
 
 class User(Base):
@@ -114,7 +121,7 @@ class User(Base):
         ),
         nullable=False,
     )
-    store_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("stores.id"), nullable=True)
+    store_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("stores.id"), nullable=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
@@ -124,7 +131,7 @@ class RecoveryCode(Base):
     __tablename__ = "recovery_codes"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     code_hash: Mapped[str] = mapped_column(String, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
@@ -154,6 +161,14 @@ async def init_db() -> None:
                 "SELECT id, store_id, amount, old_price, new_price, name, description, image_url, image_file_id, is_active, expiration_date, creation_date FROM products_legacy"
             )
             await conn.exec_driver_sql("DROP TABLE products_legacy")
+
+        for stmt in (
+            "CREATE INDEX IF NOT EXISTS ix_products_store_id ON products (store_id)",
+            "CREATE INDEX IF NOT EXISTS ix_products_creation_date ON products (creation_date)",
+            "CREATE INDEX IF NOT EXISTS ix_users_store_id ON users (store_id)",
+            "CREATE INDEX IF NOT EXISTS ix_recovery_codes_user_id ON recovery_codes (user_id)",
+        ):
+            await conn.exec_driver_sql(stmt)
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

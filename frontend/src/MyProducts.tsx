@@ -2,23 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { loadSession, saveSession, clearSession, isWorker } from './auth'
 import type { Session } from './auth'
-import { cropImageUrl, formatPrice, formatShortDate } from './format'
+import { belgradeDateKey, cropImageUrl, formatPrice, formatShortDate } from './format'
 import FreeTag from './FreeTag'
 import { dismissKeyboard } from './tapHandlers'
-
-const SERBIA_MIN_OFFSET = 120
-
-function serbiaNow(): Date {
-  const now = new Date()
-  return new Date(now.getTime() + (now.getTimezoneOffset() + SERBIA_MIN_OFFSET) * 60000)
-}
-
-function dateKey(d: Date): string {
-  const y = d.getFullYear()
-  const m = (d.getMonth() + 1).toString().padStart(2, '0')
-  const day = d.getDate().toString().padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
 
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` }
@@ -734,7 +720,7 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
     const [tj, aj, dj] = (await Promise.all([t.json(), a.json(), d.json()])) as [ApiMin[], ApiMin[], ApiMin[]]
     const todayRows = tj.map((x) => toRow(x, true))
     const todayIds = new Set(todayRows.map((p) => p.id))
-    const cutoff = dateKey(new Date(serbiaNow().getTime() - 2 * 86400000))
+    const cutoff = belgradeDateKey(-2)
     const oldRows = [...aj.map((x) => toRow(x, true)), ...dj.map((x) => toRow(x, false))].filter(
       (p) => p.creation_date.slice(0, 10) >= cutoff && !todayIds.has(p.id),
     )
