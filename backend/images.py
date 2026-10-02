@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from random import choice
@@ -8,6 +9,8 @@ from dotenv import load_dotenv
 from imagekitio import AsyncImageKit
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+logger = logging.getLogger(__name__)
 
 IMAGEKIT_URL_ENDPOINT = os.getenv("IMAGEKIT_URL_ENDPOINT", "").rstrip("/")
 IMAGEKIT_PRIVATE_KEY = os.getenv("IMAGEKIT_PRIVATE_KEY", "")
@@ -48,7 +51,7 @@ async def delete_image(file_id: str | None) -> None:
     try:
         await _get_client().files.delete(file_id)
     except Exception:
-        pass
+        logger.exception("Failed to delete ImageKit file %s", file_id)
 
 
 def store_image_url() -> str | None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, time, timedelta
@@ -51,6 +52,8 @@ from .security import (
     verify_password,
 )
 
+
+logger = logging.getLogger(__name__)
 
 _scheduler: AsyncIOScheduler | None = None
 
@@ -457,17 +460,28 @@ def _ensure_store_access(user: User, store_id: str) -> None:
 
 
 async def _email_temp_password(email: str, temp_password: str) -> None:
+    """Email the temp password, failing closed (502) when it cannot be delivered."""
     try:
-        await asyncio.to_thread(send_temporary_password, email, temp_password)
+        sent = await asyncio.to_thread(send_temporary_password, email, temp_password)
     except Exception:
-        pass
+        logger.exception("Failed to email temporary password to %s", email)
+        raise HTTPException(
+            502,
+            "The temporary password email could not be sent. The account was not changed.",
+        )
+    if not sent:
+        logger.warning("SMTP not configured; could not email temporary password to %s", email)
+        raise HTTPException(
+            502,
+            "SMTP is not configured. The temporary password email could not be sent.",
+        )
 
 
 async def _email_recovery_code(email: str, code: str, expires_minutes: int) -> None:
     try:
         await asyncio.to_thread(send_recovery_code, email, code, expires_minutes)
     except Exception:
-        pass
+        logger.exception("Failed to email recovery code to %s", email)
 
 
 def _parse_form_json(data: str, model):
@@ -792,6 +806,8 @@ async def create_worker(body: UserCreate, db: AsyncSession = Depends(get_session
     await _get_store_or_404(body.store_id, db)
 
     temp_password = generate_temp_password()
+    await _email_temp_password(email, temp_password)
+
     user = User(
         email=email,
         name=body.name,
@@ -802,7 +818,6 @@ async def create_worker(body: UserCreate, db: AsyncSession = Depends(get_session
     )
     db.add(user)
     await db.commit()
-    await _email_temp_password(user.email, temp_password)
     return UserResponse.model_validate(user)
 
 
@@ -847,10 +862,11 @@ async def reset_worker_password(worker_id: str, db: AsyncSession = Depends(get_s
     """POST /workers/{id}/reset-password — generate a new temporary password and email it (admin only)."""
     user = await _get_user_or_404(worker_id, db)
     temp_password = generate_temp_password()
+    await _email_temp_password(user.email, temp_password)
+
     user.password_hash = hash_password(temp_password)
     user.must_change_password = True
     await db.commit()
-    await _email_temp_password(user.email, temp_password)
     return UserResponse.model_validate(user)
 
 

@@ -700,7 +700,7 @@ def page_workers(backend: Backend) -> None:
             else:
                 try:
                     backend.create_worker({"email": email, "name": name or None, "store_id": store_id})
-                    flash_message("success", "Worker created. A temporary password was sent by email (if SMTP is configured).")
+                    flash_message("success", "Worker created. Temporary password emailed.")
                     st.rerun()
                 except BackendError as error:
                     handle_backend_error(error)
