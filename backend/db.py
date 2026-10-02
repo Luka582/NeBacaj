@@ -6,7 +6,7 @@ from enum import StrEnum
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, Integer, Enum
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, Integer, Enum, event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from collections.abc import AsyncGenerator
@@ -21,6 +21,13 @@ def now_serbia() -> datetime:
 
 engine = create_async_engine(DATABASE_URL, echo=os.getenv("SQL_ECHO") == "1")
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+@event.listens_for(engine.sync_engine, "connect")
+def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
 class Base(DeclarativeBase):
