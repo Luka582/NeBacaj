@@ -54,6 +54,16 @@ button {
   touch-action: none;
 }
 
+/* Keep map credits visible: default bottom-right attribution is covered by
+   the product sheet (mobile) / side panel (desktop), so pin it to the very
+   top-right corner (above the "use my location" button, which moves down).
+   z-index lifted above the closed town-search bar so it never hides it. */
+.leaflet-bottom.leaflet-right {
+  top: 0;
+  bottom: auto;
+  z-index: 1002;
+}
+
 /* Prevent iOS Safari from auto-zooming into focused inputs/textarea. */
 #root input,
 #root textarea {
