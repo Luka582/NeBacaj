@@ -126,6 +126,7 @@ type MapRequest =
   | { seq: number; type: 'focus'; lat: number; lng: number }
 
 const TOWN_FIELD_BOTTOM = 60
+const STORE_TYPES_CLEARANCE = 40
 const PEEK_HEIGHT = 140
 const FIT_WIDTH_RATIO = 0.9
 
@@ -146,7 +147,7 @@ function fitBoundsInBand(map: L.Map, bounds: [[number, number], [number, number]
     zoom = Math.log2((widthRatio * availW * 360) / (256 * lngSpan))
   }
   zoom = Math.min(Math.max(zoom, map.getMinZoom()), map.getMaxZoom())
-  const bandTop = TOWN_FIELD_BOTTOM
+  const bandTop = TOWN_FIELD_BOTTOM + STORE_TYPES_CLEARANCE
   const bandBottom = isDesktop ? size.y : size.y - PEEK_HEIGHT
   const bandMiddlePx = (bandTop + bandBottom) / 2
   const cx = isDesktop ? (size.x - panelW) / 2 : size.x / 2
@@ -179,7 +180,7 @@ function MapController({
       const size = map.getSize()
       const offsetX = size.x >= 768 ? SIDE_PANEL_WIDTH / 2 : 0
       const pt = map.project([request.lat, request.lng], map.getZoom())
-      const targetTop = Math.min(470, Math.max(120, size.y - 100))
+      const targetTop = Math.min(470, Math.max(120, size.y - 100)) + STORE_TYPES_CLEARANCE
       const center = map.unproject([pt.x + offsetX, pt.y - (targetTop - size.y / 2)], map.getZoom())
       map.panTo(center, { animate: true })
     } else if (request.type === 'store') {
@@ -306,6 +307,7 @@ function App() {
   const [productSearchError, setProductSearchError] = useState(false)
   const [searchProductOpen, setSearchProductOpen] = useState<SearchProductOpen | null>(null)
   const [sheetExpanded, setSheetExpanded] = useState(false)
+  const [selectedStoreType, setSelectedStoreType] = useState<string | null>(null)
   const [invalidateSignal, setInvalidateSignal] = useState(0)
   const prevDetailOpen = useRef(false)
 
@@ -444,7 +446,12 @@ function App() {
     })
   }
 
-  const filtered = stores.filter((s) => s.town === selectedTown)
+  const townStores = stores.filter((s) => s.town === selectedTown)
+  const typeCounts: Record<string, number> = {}
+  for (const s of townStores) {
+    typeCounts[s.store_type] = (typeCounts[s.store_type] ?? 0) + 1
+  }
+  const filtered = townStores.filter((s) => selectedStoreType === null || s.store_type === selectedStoreType)
   const nowMinutes = useNowMinutes()
 
   function handleUseMyLocation() {
@@ -491,6 +498,7 @@ function App() {
         const params = new URLSearchParams()
         if (q) params.set('q', q)
         params.set('town', selectedTown)
+        if (selectedStoreType) params.set('store_type', selectedStoreType)
         if (userLocation) {
           params.set('lat', String(userLocation[0]))
           params.set('lng', String(userLocation[1]))
@@ -519,7 +527,7 @@ function App() {
       q ? 300 : 0,
     )
     return () => window.clearTimeout(timer)
-  }, [productSearchQuery, selectedTown, userLocation, invalidateSignal])
+  }, [productSearchQuery, selectedTown, userLocation, invalidateSignal, selectedStoreType])
 
   function openProductFromSearch(result: ProductSearchResult) {
     requestSeq.current += 1
@@ -673,7 +681,8 @@ function App() {
           townSearchOpen ? 'z-[1610]' : 'z-[1000]'
         }`}
       >
-        <div className="relative w-full max-w-sm sm:w-96">
+        <div className="flex flex-col items-start gap-1">
+        <div className="relative w-full max-w-sm sm:w-full sm:max-w-none">
           <div
             className={`fixed inset-0 z-[1599] transition-opacity duration-300 ${
               townSearchOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
@@ -751,7 +760,51 @@ function App() {
           </button>
         </div>
 
-        {error && <p className="mt-1 text-center text-sm text-red-500">{error}</p>}
+        {error && <p className="text-center text-sm text-red-500">{error}</p>}
+
+        {townStores.length > 0 && (
+          <div
+            className={`no-scrollbar -mx-16 mt-1.5 flex w-[calc(100%+8rem)] gap-1.5 overflow-x-auto px-4 pb-1 sm:mt-0 sm:mx-0 sm:w-auto sm:px-0 ${
+              townSearchOpen || showHint ? 'invisible' : ''
+            }`}
+          >
+            {(
+              [
+                { key: 'all', label: 'Sve', type: null },
+                ...Object.entries(STORE_LABELS)
+                  .map(([key, label]) => ({ key, label, type: key, count: typeCounts[key] ?? 0 }))
+                  .sort((a, b) => b.count - a.count),
+              ] as { key: string; label: string; type: string | null }[]
+            ).map(({ key, label, type }) => {
+              const active = selectedStoreType === type
+              const count = type === null ? townStores.length : typeCounts[type] ?? 0
+              const muted = count === 0 && !active
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  {...tapHandlers(() => setSelectedStoreType(active ? null : type))}
+                  onClick={() => setSelectedStoreType(active ? null : type)}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
+                    active
+                      ? 'border-brand-600 bg-brand-600 text-white'
+                      : `border-slate-200 bg-white text-slate-700 ${muted ? 'opacity-45' : ''}`
+                  }`}
+                >
+                  {type !== null && (
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: active ? '#ffffff' : STORE_COLORS[type] ?? '#78716c' }}
+                    />
+                  )}
+                  {label}
+                  <span className={`${active ? 'text-brand-100' : 'text-slate-400'}`}>· {count}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+        </div>
       </div>
 
       <button
