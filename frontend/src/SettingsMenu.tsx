@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { dismissKeyboard } from './tapHandlers'
 import type { Session } from './auth'
-import { loadSession, saveSession, clearSession } from './auth'
+import { useSession, saveSession, clearSession } from './auth'
 
 const SUPPORT_EMAIL = 'support@nebacaj.com'
 const ERROR_TRANSLATIONS: Record<string, string> = {
@@ -71,7 +71,7 @@ interface SettingsMenuProps {
 }
 
 function SettingsMenu({ open, onClose, onOpenMyProducts }: SettingsMenuProps) {
-  const [session, setSession] = useState<Session | null>(() => loadSession())
+  const session = useSession()
   const [vh] = useState(() => window.innerHeight)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -122,7 +122,6 @@ function SettingsMenu({ open, onClose, onOpenMyProducts }: SettingsMenuProps) {
         must_change_password: Boolean(data.must_change_password),
       }
       saveSession(next)
-      setSession(next)
       setPassword('')
       if (next.must_change_password) setChanging(true)
     } catch {
@@ -163,7 +162,6 @@ function SettingsMenu({ open, onClose, onOpenMyProducts }: SettingsMenuProps) {
       }
       const next = { ...session, must_change_password: false }
       saveSession(next)
-      setSession(next)
       setChanging(false)
       setOldPassword('')
       setNewPassword('')
@@ -257,7 +255,6 @@ function SettingsMenu({ open, onClose, onOpenMyProducts }: SettingsMenuProps) {
         must_change_password: Boolean(data.must_change_password),
       }
       saveSession(next)
-      setSession(next)
       setEmail(recoverEmail)
       setPassword('')
       setRecovering(false)
@@ -272,7 +269,6 @@ function SettingsMenu({ open, onClose, onOpenMyProducts }: SettingsMenuProps) {
 
   function logout() {
     clearSession()
-    setSession(null)
     setChanging(false)
     setRecovering(false)
     setCodeSent(false)

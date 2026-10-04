@@ -340,22 +340,23 @@ function App() {
   }, [detailStoreId, searchProductOpen])
 
   useEffect(() => {
-    if (inputFocused || detailStoreId != null || searchProductOpen != null || settingsOpen || myProductsOpen) {
-      const de = document.documentElement
-      const prevBody = document.body.style.overflow
-      const prevDoc = de.style.overflow
-      document.body.style.overflow = 'hidden'
-      document.body.style.overscrollBehavior = 'none'
-      de.style.overflow = 'hidden'
-      de.style.overscrollBehavior = 'none'
-      return () => {
-        document.body.style.overflow = prevBody
-        document.body.style.overscrollBehavior = ''
-        de.style.overflow = prevDoc
-        de.style.overscrollBehavior = ''
-      }
+    if (!(inputFocused || detailStoreId != null || searchProductOpen != null || settingsOpen || myProductsOpen)) return
+    const de = document.documentElement
+    const prevBody = document.body.style.overflow
+    const prevBodyOverscroll = document.body.style.overscrollBehavior
+    const prevDoc = de.style.overflow
+    const prevDocOverscroll = de.style.overscrollBehavior
+    document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
+    de.style.overflow = 'hidden'
+    de.style.overscrollBehavior = 'none'
+    return () => {
+      document.body.style.overflow = prevBody
+      document.body.style.overscrollBehavior = prevBodyOverscroll
+      de.style.overflow = prevDoc
+      de.style.overscrollBehavior = prevDocOverscroll
     }
-  }, [inputFocused, detailStoreId, searchProductOpen])
+  }, [inputFocused, detailStoreId, searchProductOpen, settingsOpen, myProductsOpen])
 
   const applyStores = (data: unknown) => {
     const stores = parseStores(data)
