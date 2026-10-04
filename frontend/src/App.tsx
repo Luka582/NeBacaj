@@ -8,7 +8,8 @@ import ProductSheet, { type ProductSearchResult, SIDE_PANEL_WIDTH } from './Prod
 import SettingsMenu from './SettingsMenu'
 import MyProducts from './MyProducts'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
-import { cropImageUrl, formatMinutes, getSerbiaMinutes } from './format'
+import { cropImageUrl, formatMinutes } from './format'
+import { useNowMinutes } from './useNowMinutes'
 
 const CARTO_KEY = __CARTO_API_KEY__
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
@@ -38,6 +39,33 @@ interface Store {
   today_products_count: number
   today_opening_minute: number
   today_closing_minute: number
+}
+
+function isStoreRecord(v: unknown): v is Store {
+  if (typeof v !== 'object' || v === null) return false
+  const s = v as Record<string, unknown>
+  return (
+    typeof s.id === 'string' &&
+    typeof s.town === 'string' &&
+    typeof s.street === 'string' &&
+    typeof s.street_number === 'string' &&
+    Number.isFinite(s.latitude) &&
+    Number.isFinite(s.longitude) &&
+    typeof s.name === 'string' &&
+    typeof s.store_type === 'string' &&
+    Number.isFinite(s.today_products_count) &&
+    Number.isFinite(s.today_opening_minute) &&
+    Number.isFinite(s.today_closing_minute) &&
+    (s.image_url === undefined || s.image_url === null || typeof s.image_url === 'string')
+  )
+}
+
+function parseStores(data: unknown): Store[] | null {
+  if (!Array.isArray(data)) return null
+  for (const s of data) {
+    if (!isStoreRecord(s)) return null
+  }
+  return data as Store[]
 }
 
 interface SearchProductOpen {
@@ -327,6 +355,17 @@ function App() {
     }
   }, [inputFocused, detailStoreId, searchProductOpen])
 
+  const applyStores = (data: unknown) => {
+    const stores = parseStores(data)
+    if (stores === null) {
+      setStores([])
+      setError('Neispravan odgovor servera.')
+    } else {
+      setStores(stores)
+      setError(null)
+    }
+  }
+
   useEffect(() => {
     let alive = true
     fetch('/api/stores?is_active=true&only_opened=false')
@@ -334,8 +373,8 @@ function App() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
       })
-      .then((data: Store[]) => {
-        if (alive) setStores(data)
+      .then((data) => {
+        if (alive) applyStores(data)
       })
       .catch((err) => {
         if (alive) setError(err.message)
@@ -351,9 +390,9 @@ function App() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
       })
-      .then((data: Store[]) => setStores(data))
+      .then((data) => applyStores(data))
       .catch((err) => setError(err.message))
-    setInvalidateSignal((n) => n + 1)
+      .finally(() => setInvalidateSignal((n) => n + 1))
   }
 
   const didInitialFit = useRef(false)
@@ -406,7 +445,7 @@ function App() {
   }
 
   const filtered = stores.filter((s) => s.town === selectedTown)
-  const nowMinutes = getSerbiaMinutes()
+  const nowMinutes = useNowMinutes()
 
   function handleUseMyLocation() {
     const fallback = () => fitToTown(selectedTown)
