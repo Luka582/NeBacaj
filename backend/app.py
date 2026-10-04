@@ -19,7 +19,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .cleanup import cleanup_cutoff, cleanup_old_products, claim_run, run_key_for
-from .db import MaintenanceRun, Store, Product, User, UserRole, RecoveryCode, SERBIA_TZ, async_session, get_session, init_db, now_serbia
+from .db import MaintenanceRun, Store, Product, User, UserRole, RecoveryCode, StoreType, SERBIA_TZ, async_session, get_session, init_db, now_serbia
 from .emailer import send_recovery_code, send_temporary_password
 from .images import delete_image, upload_image
 from .schemas import (
@@ -338,13 +338,14 @@ async def search_products(
     lat: float | None = Query(default=None, ge=-90, le=90, description="Reference latitude for distance sorting"),
     lng: float | None = Query(default=None, ge=-180, le=180, description="Reference longitude for distance sorting"),
     limit: int = Query(default=100, ge=1, le=500, description="Maximum number of results"),
+    store_type: StoreType | None = Query(default=None, description="Restrict search to a single store type"),
     db: AsyncSession = Depends(get_session),
 ) -> list[ProductSearchResult]:
-    """GET /products/search?q=&town=&lat=&lng=&limit=
+    """GET /products/search?q=&town=&lat=&lng=&limit=&store_type=
 
-    Lists active products, optionally filtered by name (q) and/or store town. When both lat and lng
-    are provided, results are sorted by distance to that point (closest first, newest breaking ties);
-    otherwise the newest products come first. Returns up to ``limit`` results (default 100).
+    Lists active products, optionally filtered by name (q), store town, and/or store type. When both
+    lat and lng are provided, results are sorted by distance to that point (closest first, newest
+    breaking ties); otherwise the newest products come first. Returns up to ``limit`` results (default 100).
     """
     stmt = (
         select(Product, Store)
@@ -355,6 +356,8 @@ async def search_products(
         stmt = stmt.where(Product.name.ilike(f"%{q}%"))
     if town:
         stmt = stmt.where(Store.town == town)
+    if store_type:
+        stmt = stmt.where(Store.store_type == store_type)
 
     rows = (await db.execute(stmt)).all()
 

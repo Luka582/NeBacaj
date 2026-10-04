@@ -170,3 +170,14 @@ button {
   font-weight: 700;
   color: #0f172a;
 }
+
+/* Hide scrollbars on the horizontally scrollable store-type chip row
+   so it reads as a flat Google-Maps-style chips bar. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

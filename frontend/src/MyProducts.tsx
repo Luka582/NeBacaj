@@ -671,10 +671,10 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<{ mode: FormMode; id: string | null } | null>(null)
-  const storeIdRef = useRef<string | null>(null)
+  const [storeId, setStoreId] = useState<string | null>(null)
 
   async function ensureStoreId(s: Session): Promise<string | null> {
-    if (storeIdRef.current) return storeIdRef.current
+    if (storeId) return storeId
     const res = await fetch('/api/auth/me', { headers: bearer(s.token) })
     if (res.status === 401) {
       clearSession()
@@ -684,7 +684,7 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
     if (!res.ok) throw new Error('Nije moguće učitati podatke o nalogu.')
     const me = (await res.json()) as { store_id: string | null }
     if (!me.store_id) throw new Error('Nalog nije povezan ni sa jednom prodavnicom.')
-    storeIdRef.current = me.store_id
+    setStoreId(me.store_id)
     const updated: Session = { ...s, store_id: me.store_id }
     if (s.store_id !== me.store_id) {
       saveSession(updated)
@@ -839,6 +839,7 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
               <p className="text-xs font-semibold text-slate-400">Prodavnica: {storeName}</p>
             )}
             {error && <p className="text-sm text-red-500">{error}</p>}
+            {storeId != null && (
             <button
               type="button"
               onClick={() => setForm({ mode: 'create', id: null })}
@@ -847,6 +848,7 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
             >
               Novi proizvod
             </button>
+            )}
 
             <section className="space-y-2">
               <h2 className="text-xs font-bold tracking-wide text-slate-400 uppercase">
@@ -980,11 +982,11 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
         )}
       </div>
 
-      {form && session && (
+      {form && session && storeId && (
         <ProductForm
           mode={form.mode}
           token={session.token}
-          storeId={storeIdRef.current ?? ''}
+          storeId={storeId}
           productId={form.id}
           onSaved={handleSaved}
           onCancel={() => setForm(null)}

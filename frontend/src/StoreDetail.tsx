@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { cropImageUrl, formatMinutes, formatPrice, getSerbiaWeekday, getSerbiaMinutes, relativeTimeAgo } from './format'
+import { cropImageUrl, formatMinutes, formatPrice, getSerbiaWeekday, relativeTimeAgo } from './format'
+import { useNowMinutes } from './useNowMinutes'
 import FreeTag from './FreeTag'
 import ProductDetail from './ProductDetail'
 
@@ -130,7 +131,7 @@ function StoreDetail({
   const todayIndex = getSerbiaWeekday()
   const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
   const nowKey = `opening_minute_${dayKeys[todayIndex]}` as MinutesKey
-  const nowMinutes = getSerbiaMinutes()
+  const nowMinutes = useNowMinutes()
   const isClosed = store
     ? (() => {
         const todayWork = store[`working_minutes_${dayKeys[todayIndex]}` as MinutesKey]
