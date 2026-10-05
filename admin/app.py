@@ -213,7 +213,7 @@ def render_sidebar() -> str:
             for key in ("token", "role", "email", "must_change_password"):
                 st.session_state.pop(key, None)
             st.rerun()
-    return st.sidebar.radio("Section", ["Stores", "Products", "Workers"])
+    return st.sidebar.radio("Section", ["Stores", "Products", "Workers", "Database"])
 
 
 # ------------------------------------------------------------------- stores
@@ -759,6 +759,26 @@ def page_workers(backend: Backend) -> None:
                     handle_backend_error(error)
 
 
+def page_database(backend: Backend) -> None:
+    st.subheader("Database export")
+    st.info("Export celokupne baze BEZ proizvoda (koristi se kao ručni backup).")
+    st.caption("Sadrži: prodavnice, korisnike (radnici + administratori), recovery kodove i maintenance runs. Tabela 'products' je prazna.")
+    if st.button("Preuzmi bazu bez proizvoda", use_container_width=True):
+        try:
+            data = backend.export_db()
+            ts = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+            st.download_button(
+                label="Sačuvaj fajl",
+                data=data,
+                file_name=f"nebacaj_db_no_products_{ts}.db",
+                mime="application/vnd.sqlite3",
+                use_container_width=True,
+                key="db_download",
+            )
+        except BackendError as error:
+            handle_backend_error(error)
+
+
 # --------------------------------------------------------------------- main
 
 st.set_page_config(page_title="NeBacaj Admin", layout="wide")
@@ -783,5 +803,7 @@ if page == "Stores":
     page_stores(backend)
 elif page == "Products":
     page_products(backend)
+elif page == "Database":
+    page_database(backend)
 else:
     page_workers(backend)
