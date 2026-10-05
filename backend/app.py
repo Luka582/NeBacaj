@@ -342,18 +342,25 @@ async def search_products(
     lng: float | None = Query(default=None, ge=-180, le=180, description="Reference longitude for distance sorting"),
     limit: int = Query(default=100, ge=1, le=500, description="Maximum number of results"),
     store_type: StoreType | None = Query(default=None, description="Restrict search to a single store type"),
+    only_opened: bool = Query(default=True, description="Return only products from currently open stores"),
+    today_only: bool = Query(default=True, description="Return only products posted during the store's current working shift"),
     db: AsyncSession = Depends(get_session),
 ) -> list[ProductSearchResult]:
-    """GET /products/search?q=&town=&lat=&lng=&limit=&store_type=
+    """GET /products/search?q=&town=&lat=&lng=&limit=&store_type=&only_opened=&today_only=
 
-    Lists active products, optionally filtered by name (q), store town, and/or store type. When both
-    lat and lng are provided, results are sorted by distance to that point (closest first, newest
+    Lists active products from active stores, optionally filtered by name (q), store town, and/or store
+    type. Products from deactivated stores are never returned.
+
+    By default results are scoped to the current working shift, matching ``GET /products/{store_id}`` and
+    the ``today_products_count`` shown on the map: ``only_opened=false`` keeps products from any active
+    store, and ``today_only=false`` keeps a store's products regardless of which shift posted them. When
+    both lat and lng are provided, results are sorted by distance to that point (closest first, newest
     breaking ties); otherwise the newest products come first. Returns up to ``limit`` results (default 100).
     """
     stmt = (
         select(Product, Store)
         .join(Store, Product.store_id == Store.id)
-        .where(Product.is_active.is_(True))
+        .where(Product.is_active.is_(True), Store.is_active.is_(True))
     )
     if q:
         stmt = stmt.where(Product.name.ilike(f"%{q}%"))
@@ -363,6 +370,24 @@ async def search_products(
         stmt = stmt.where(Store.store_type == store_type)
 
     rows = (await db.execute(stmt)).all()
+
+    if only_opened or today_only:
+        reference = datetime.now(SERBIA_TZ)
+        today = reference.weekday()
+        current_minutes = reference.hour * 60 + reference.minute
+        kept: list[tuple[Product, Store]] = []
+        for product, store in rows:
+            if only_opened and _active_shift(store, today, current_minutes) is None:
+                continue
+            if today_only:
+                window = _shift_window(store, reference)
+                if window is None:
+                    continue
+                start, end = window
+                if not start <= product.creation_date < end:
+                    continue
+            kept.append((product, store))
+        rows = kept
 
     def to_result(product: Product, store: Store, distance_km: float | None) -> ProductSearchResult:
         return ProductSearchResult(
