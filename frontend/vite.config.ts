@@ -7,7 +7,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
+      // Explicit allowlist: only these two are inlined into the client bundle. .env also
+      // holds secrets (JWT_SECRET, ImageKit keys, passwords), which are loaded into the
+      // build process but never referenced here, so they cannot reach the browser.
       __CARTO_API_KEY__: JSON.stringify(env.CARTO_API_KEY || ''),
+      __CONTACT_EMAIL__: JSON.stringify(env.CONTACT_EMAIL || ''),
     },
     server: {
       proxy: {

@@ -57,9 +57,24 @@ Create a `.env` file in the project root:
 | `AUTO_REPLY_EMAIL` | No | Gmail address used as the SMTP sender for temporary passwords and recovery codes. If empty, no emails are sent. |
 | `AUTO_REPLY_EMAIL_APP_PASSWORD` | No | Gmail **app password** for the sender address (not your regular password). |
 | `IMAGEKIT_URL_ENDPOINT` | No | ImageKit URL endpoint (e.g. `https://ik.imagekit.io/your_imagekit_id`). Needed for store/product images. |
-| `IMAGEKIT_PUBLIC_KEY` | No | ImageKit public key. |
+| `IMAGEKIT_PUBLIC_KEY` | No | ImageKit public key. Not read by the current code — uploads go through the backend with `IMAGEKIT_PRIVATE_KEY` — but kept for a future direct browser-to-ImageKit upload flow. |
 | `IMAGEKIT_PRIVATE_KEY` | No | ImageKit private key. Image **uploads will fail** without it. |
+| `CONTACT_EMAIL` | No (frontend) | Public address shown as **Pomoć i kontakt** in the in-app settings, both as the `mailto:` target and the visible label. Inlined into the bundle at build time, so changing it requires a frontend rebuild. |
 | `ADMIN_BACKEND_URL` | No | Default backend URL the admin panel tries on login. Defaults to `http://localhost:8000`; can also be typed in at the panel's login screen. |
+| `CLEANUP_ENABLED` | No | Set to `0` to disable the nightly product cleanup job. Defaults to `1`. |
+| `CLEANUP_OLD_HOURS` | No | Age in hours after which a product is soft-deleted by the nightly job, independently of its expiration date. Defaults to `72`. |
+
+### Frontend variables and `.env` safety
+
+`CARTO_API_KEY` and `CONTACT_EMAIL` are the only two values that reach the browser. Vite
+loads the root `.env` during a build, but `frontend/vite.config.ts` inlines variables only
+where they are explicitly listed under `define` — everything else (`JWT_SECRET`,
+`IMAGEKIT_PRIVATE_KEY`, the SMTP app password) stays inside the build process and is never
+written into the bundle.
+
+Because these are inlined, they are baked into the built assets rather than read at runtime:
+restarting the backend has no effect on them, only a frontend rebuild does. They are also
+not secret — anything shipped this way is readable by anyone who loads the site.
 
 ## Running
 

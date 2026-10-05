@@ -3,7 +3,10 @@ import { dismissKeyboard } from './tapHandlers'
 import type { Session } from './auth'
 import { useSession, saveSession, clearSession } from './auth'
 
-const SUPPORT_EMAIL = 'support@nebacaj.com'
+// Public contact address, read from CONTACT_EMAIL in .env and inlined at build time by
+// vite.config.ts. Falls back to the previous hardcoded address so a build without .env
+// still renders a usable mailto.
+const SUPPORT_EMAIL = __CONTACT_EMAIL__ || 'support@nebacaj.com'
 const ERROR_TRANSLATIONS: Record<string, string> = {
   'Current password is incorrect': 'Trenutna lozinka nije tačna.',
   'Invalid email or password': 'Pogrešna e-adresa ili lozinka.',
