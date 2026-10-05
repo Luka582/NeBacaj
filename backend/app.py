@@ -73,7 +73,7 @@ async def lifespan(_: FastAPI):
             deleted = await cleanup_old_products(db, cutoff)
             print(
                 f"[maintenance] {run_key}: soft-deleted {deleted} products older than "
-                f"{cutoff:%Y-%m-%d %H:%M}"
+                f"{cutoff:%Y-%m-%d %H:%M} or past their expiration date"
             )
 
     enabled = os.getenv("CLEANUP_ENABLED", "1").lower() not in {"0", "false", "no"}

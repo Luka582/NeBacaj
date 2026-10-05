@@ -142,7 +142,8 @@ confirmation and shows the affected counts before you delete.
 - `db.py` — SQLite helpers/schema, `nebacaj.db` lives in the project root.
 - `schemas.py` — request/response models; `security.py` — password hashing, JWT,
   recovery codes; `images.py` — ImageKit uploads; `emailer.py` — SMTP.
-- `cleanup.py` — deletes products past their expiration; runs in the app.
+- `cleanup.py` — nightly soft-delete of products past their expiration date or older
+  than `CLEANUP_OLD_HOURS` (default 72); rows are kept for history, ImageKit files freed.
 - `seed_admin.py` / `make_dummy_data.py` — one-off scripts.
 
 ### Admin panel (`admin/` — Streamlit)
