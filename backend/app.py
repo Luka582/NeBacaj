@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 import os
+import sqlite3
+import tempfile
 from contextlib import asynccontextmanager
 from datetime import datetime, time, timedelta
 from math import asin, cos, radians, sin, sqrt
@@ -14,6 +17,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -935,6 +939,70 @@ async def delete_product(
     product.is_active = False
     await _clear_image(product)
     await db.commit()
+
+
+@app.get("/admin/export-db", response_class=StreamingResponse, dependencies=[Depends(require_admin)])
+async def export_db():
+    """Export entire DB without product data (manual backup).
+    Keeps schema+data for stores, users, recovery_codes, maintenance_runs; products table empty."""
+    src_path = Path("nebacaj.db").resolve()
+    dst_path = None
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tf:
+        dst_path = Path(tf.name)
+    try:
+        if not src_path.exists():
+            raise HTTPException(status_code=404, detail="Database file not found")
+        src = sqlite3.connect(f"file:{src_path}?mode=ro", uri=True)
+        dst = sqlite3.connect(str(dst_path))
+        src.row_factory = sqlite3.Row
+        dst.execute("PRAGMA foreign_keys=ON")
+
+        table_order = ("stores", "users", "products", "recovery_codes", "maintenance_runs")
+        for tname in table_order:
+            s = src.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (tname,)).fetchone()
+            if s and s[0]:
+                dst.execute(s[0])
+            if tname == "products":
+                continue  # no product data
+            for row in src.execute(f"SELECT * FROM {tname}"):
+                cols = row.keys()
+                ph = ",".join("?" for _ in cols)
+                dst.execute(f"INSERT INTO {tname} ({','.join(cols)}) VALUES ({ph})", [row[c] for c in cols])
+
+        for idx in src.execute("SELECT sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL"):
+            sql = idx[0]
+            if sql and sql.strip().upper().startswith("CREATE INDEX") and sql.upper().startswith("CREATE INDEX SQLITE_AUTOINDEX"):
+                continue
+            if sql and sql.strip().upper().startswith("CREATE INDEX"):
+                try:
+                    dst.execute(sql)
+                except sqlite3.OperationalError:
+                    pass
+
+        for trig in src.execute("SELECT sql FROM sqlite_master WHERE type='trigger' AND sql IS NOT NULL"):
+            sql = trig[0]
+            if sql:
+                try:
+                    dst.execute(sql)
+                except sqlite3.OperationalError:
+                    pass
+
+        dst.commit()
+        dst.close()
+        src.close()
+        data = dst_path.read_bytes()
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return StreamingResponse(
+            io.BytesIO(data),
+            media_type="application/vnd.sqlite3",
+            headers={"Content-Disposition": f'attachment; filename="nebacaj_db_no_products_{ts}.db"'}
+        )
+    finally:
+        if dst_path is not None:
+            try:
+                dst_path.unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 @app.post("/products/{product_id}/reactivate", response_model=ProductResponse)

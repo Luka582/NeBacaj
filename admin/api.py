@@ -32,7 +32,7 @@ class Backend:
             return {"Authorization": f"Bearer {self.token}"}
         return {}
 
-    def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+    def _request(self, method: str, path: str, parse_json: bool = True, **kwargs: Any) -> Any:
         try:
             response = httpx.request(method, f"{self.base_url}{path}", headers=self._headers(), timeout=120, **kwargs)
         except httpx.HTTPError as exc:
@@ -51,6 +51,8 @@ class Backend:
             except Exception:
                 pass
             raise BackendError(response.status_code, detail)
+        if not parse_json:
+            return response.content
         if response.status_code == 204 or not response.content:
             return None
         return response.json()
@@ -146,3 +148,6 @@ class Backend:
 
     def delete_worker(self, worker_id: str) -> None:
         self._request("DELETE", f"/workers/{worker_id}")
+
+    def export_db(self) -> bytes:
+        return self._request("GET", "/admin/export-db", parse_json=False)
