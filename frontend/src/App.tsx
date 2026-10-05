@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css'
 import StoreDetail from './StoreDetail'
 import ProductDetail from './ProductDetail'
 import ProductSheet, { type ProductSearchResult, SIDE_PANEL_WIDTH } from './ProductSheet'
+import { type LatLngBounds, boundsForStores, fitView } from './mapFit'
 import SettingsMenu from './SettingsMenu'
 import MyProducts from './MyProducts'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
@@ -121,7 +122,7 @@ function makePinIcon(type: string, hasDeals: boolean, dim: boolean) {
 
 type MapRequest =
   | { seq: number; type: 'location'; lat: number; lng: number; radiusKm: number }
-  | { seq: number; type: 'town'; bounds: [[number, number], [number, number]] }
+  | { seq: number; type: 'town'; bounds: LatLngBounds; animate: boolean }
   | { seq: number; type: 'store'; lat: number; lng: number }
   | { seq: number; type: 'focus'; lat: number; lng: number }
 
@@ -129,31 +130,48 @@ const TOWN_FIELD_BOTTOM = 60
 const STORE_TYPES_CLEARANCE = 40
 const PEEK_HEIGHT = 140
 const FIT_WIDTH_RATIO = 0.9
+const FIT_ANIM_DURATION = 0.6
 
-function fitBoundsInBand(map: L.Map, bounds: [[number, number], [number, number]], widthRatio = FIT_WIDTH_RATIO) {
+/**
+ * Frames `bounds` inside the map's usable area rather than the whole viewport: the side
+ * panel on desktop, and the chrome above and the bottom sheet below, are excluded.
+ *
+ * Bounds arrive already sized from boundsForStores, so this only decides how much of the
+ * viewport the stores occupy and where they sit in it.
+ */
+function fitBoundsInBand(
+  map: L.Map,
+  bounds: LatLngBounds,
+  widthRatio = FIT_WIDTH_RATIO,
+  animate = true,
+) {
   const size = map.getSize()
+  if (size.x === 0 || size.y === 0) return
   const isDesktop = size.x >= 768
   const panelW = isDesktop ? SIDE_PANEL_WIDTH : 0
-  const availW = size.x - panelW
-  const sw = bounds[0]
-  const ne = bounds[1]
-  const latC = (sw[0] + ne[0]) / 2
-  const lngC = (sw[1] + ne[1]) / 2
-  const lngSpan = ne[1] - sw[1]
-  let zoom: number
-  if (lngSpan <= 1e-6) {
-    zoom = Math.max(map.getZoom(), 14)
-  } else {
-    zoom = Math.log2((widthRatio * availW * 360) / (256 * lngSpan))
-  }
-  zoom = Math.min(Math.max(zoom, map.getMinZoom()), map.getMaxZoom())
   const bandTop = TOWN_FIELD_BOTTOM + STORE_TYPES_CLEARANCE
   const bandBottom = isDesktop ? size.y : size.y - PEEK_HEIGHT
-  const bandMiddlePx = (bandTop + bandBottom) / 2
-  const cx = isDesktop ? (size.x - panelW) / 2 : size.x / 2
-  const c = map.project([latC, lngC], zoom)
-  const center = map.unproject([c.x + (size.x / 2 - cx), c.y + (size.y / 2 - bandMiddlePx)], zoom)
-  map.setView(center, zoom)
+
+  const fit = fitView(bounds, {
+    size: { x: size.x, y: size.y },
+    padLeft: panelW,
+    padTop: bandTop,
+    padBottom: size.y - bandBottom,
+    widthRatio,
+  })
+  if (!fit) return
+
+  // fitView centres on the bounds themselves, so shift that centre to the middle of the
+  // usable area to keep the framed stores clear of the panel and the bottom sheet.
+  const px = map.project(fit.center, fit.zoom)
+  const center = map.unproject(
+    [
+      px.x + ((panelW + size.x) / 2 - size.x / 2),
+      px.y + ((bandTop + bandBottom) / 2 - size.y / 2),
+    ],
+    fit.zoom,
+  )
+  map.setView(center, fit.zoom, { animate, duration: FIT_ANIM_DURATION })
 }
 
 function MapController({
@@ -171,9 +189,10 @@ function MapController({
     if (!request || request.seq === lastSeq.current) return
     lastSeq.current = request.seq
     if (request.type === 'location') {
-      const bounds: [[number, number], [number, number]] = [
-        [request.lat - request.radiusKm / 111, request.lng - request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
-        [request.lat + request.radiusKm / 111, request.lng + request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))],
+      const dLng = request.radiusKm / (111 * Math.cos((request.lat * Math.PI) / 180))
+      const bounds: LatLngBounds = [
+        [request.lat - request.radiusKm / 111, request.lng - dLng],
+        [request.lat + request.radiusKm / 111, request.lng + dLng],
       ]
       fitBoundsInBand(map, bounds, 0.2)
     } else if (request.type === 'focus') {
@@ -182,14 +201,18 @@ function MapController({
       const pt = map.project([request.lat, request.lng], map.getZoom())
       const targetTop = Math.min(470, Math.max(120, size.y - 100)) + STORE_TYPES_CLEARANCE
       const center = map.unproject([pt.x + offsetX, pt.y - (targetTop - size.y / 2)], map.getZoom())
-      map.panTo(center, { animate: true })
+      map.panTo(center, { animate: true, duration: FIT_ANIM_DURATION })
     } else if (request.type === 'store') {
       const zoom = Math.max(map.getZoom(), 13)
       const pt = map.project([request.lat, request.lng], zoom)
       const offsetX = map.getSize().x >= 768 ? SIDE_PANEL_WIDTH / 2 : 0
-      map.setView(map.unproject([pt.x + offsetX, pt.y], zoom), zoom)
+      map.setView(map.unproject([pt.x + offsetX, pt.y], zoom), zoom, {
+        animate: true,
+        duration: FIT_ANIM_DURATION,
+      })
     } else {
-      fitBoundsInBand(map, request.bounds)
+      // animate is decided by the caller: town switches jump, store-type filters glide.
+      fitBoundsInBand(map, request.bounds, FIT_WIDTH_RATIO, request.animate)
     }
   }, [request, map])
 
@@ -402,7 +425,10 @@ function App() {
   useEffect(() => {
     if (didInitialFit.current || stores.length === 0) return
     didInitialFit.current = true
-    fitToTown(selectedTown)
+    fitToStores(
+      storesForTown(selectedTown).filter((s) => selectedStoreType === null || s.store_type === selectedStoreType),
+      false,
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stores])
 
@@ -414,24 +440,24 @@ function App() {
     return stores.filter((s) => s.town === town)
   }
 
-  function fitToTown(town: string) {
-    const townStores = storesForTown(town)
-    if (townStores.length === 0) return
-    const lats = townStores.map((s) => s.latitude)
-    const lngs = townStores.map((s) => s.longitude)
-    const bounds: [[number, number], [number, number]] = [
-      [Math.min(...lats), Math.min(...lngs)],
-      [Math.max(...lats), Math.max(...lngs)],
-    ]
+  /** Frame exactly the stores currently shown. No stores means no movement at all. */
+  function fitToStores(list: Store[], animate = true) {
+    const bounds = boundsForStores(list.map((s) => [s.latitude, s.longitude]))
+    if (!bounds) return
     requestSeq.current += 1
-    setMapRequest({ seq: requestSeq.current, type: 'town', bounds })
+    setMapRequest({ seq: requestSeq.current, type: 'town', bounds, animate })
   }
 
   function selectTown(town: string) {
     setSelectedTown(town)
     setSearchQuery(town)
     setTownSearchOpen(false)
-    fitToTown(town)
+    // Switching towns jumps rather than animating: the map is about to show a
+    // different place entirely, so gliding there just drags the old stores along.
+    fitToStores(
+      storesForTown(town).filter((s) => selectedStoreType === null || s.store_type === selectedStoreType),
+      false,
+    )
     try {
       localStorage.setItem('lastTown', town)
     } catch {
@@ -455,8 +481,15 @@ function App() {
   const filtered = townStores.filter((s) => selectedStoreType === null || s.store_type === selectedStoreType)
   const nowMinutes = useNowMinutes()
 
+  // Toggling a store type changes what is on the map, so the view glides to it.
+  // fitToStores does nothing when the filter leaves no stores to show.
+  useEffect(() => {
+    fitToStores(filtered)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStoreType])
+
   function handleUseMyLocation() {
-    const fallback = () => fitToTown(selectedTown)
+    const fallback = () => fitToStores(filtered)
     if (!navigator.geolocation) {
       fallback()
       return
