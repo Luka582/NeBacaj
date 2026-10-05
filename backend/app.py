@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
 import os
 import sqlite3
@@ -17,7 +16,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -941,43 +940,36 @@ async def delete_product(
     await db.commit()
 
 
-@app.get("/admin/export-db", response_class=StreamingResponse, dependencies=[Depends(require_admin)])
-async def export_db():
-    """Export entire DB without product data (manual backup).
-    Keeps schema+data for stores, users, recovery_codes, maintenance_runs; products table empty."""
-    src_path = Path("nebacaj.db").resolve()
-    dst_path = None
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tf:
-        dst_path = Path(tf.name)
+def _copy_db_without_products(src_path: Path, dst_path: Path) -> None:
+    """Copy schema plus every table except product rows. Blocking: run in a thread."""
+    src = sqlite3.connect(f"file:{src_path}?mode=ro", uri=True)
+    dst = sqlite3.connect(str(dst_path))
     try:
-        if not src_path.exists():
-            raise HTTPException(status_code=404, detail="Database file not found")
-        src = sqlite3.connect(f"file:{src_path}?mode=ro", uri=True)
-        dst = sqlite3.connect(str(dst_path))
         src.row_factory = sqlite3.Row
         dst.execute("PRAGMA foreign_keys=ON")
 
+        # Ordered so that foreign keys always resolve: every reference here points at
+        # stores or users, both of which are copied before their dependents.
         table_order = ("stores", "users", "products", "recovery_codes", "maintenance_runs")
         for tname in table_order:
             s = src.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (tname,)).fetchone()
             if s and s[0]:
                 dst.execute(s[0])
             if tname == "products":
-                continue  # no product data
+                continue  # keep the table, drop the rows
             for row in src.execute(f"SELECT * FROM {tname}"):
                 cols = row.keys()
                 ph = ",".join("?" for _ in cols)
                 dst.execute(f"INSERT INTO {tname} ({','.join(cols)}) VALUES ({ph})", [row[c] for c in cols])
 
+        # sqlite_master has no SQL for implicit indexes, so nothing else to skip.
         for idx in src.execute("SELECT sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL"):
             sql = idx[0]
-            if sql and sql.strip().upper().startswith("CREATE INDEX") and sql.upper().startswith("CREATE INDEX SQLITE_AUTOINDEX"):
-                continue
             if sql and sql.strip().upper().startswith("CREATE INDEX"):
                 try:
                     dst.execute(sql)
                 except sqlite3.OperationalError:
-                    pass
+                    pass  # e.g. an index whose table is absent in the export
 
         for trig in src.execute("SELECT sql FROM sqlite_master WHERE type='trigger' AND sql IS NOT NULL"):
             sql = trig[0]
@@ -988,21 +980,58 @@ async def export_db():
                     pass
 
         dst.commit()
+    finally:
         dst.close()
         src.close()
-        data = dst_path.read_bytes()
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return StreamingResponse(
-            io.BytesIO(data),
-            media_type="application/vnd.sqlite3",
-            headers={"Content-Disposition": f'attachment; filename="nebacaj_db_no_products_{ts}.db"'}
-        )
-    finally:
-        if dst_path is not None:
-            try:
-                dst_path.unlink(missing_ok=True)
-            except Exception:
-                pass
+
+
+class _TempDbFileResponse(FileResponse):
+    """FileResponse that deletes its temp file even if the client aborts mid-download.
+
+    FileResponse only runs a background task after the body is fully sent, so an
+    interrupted download would otherwise leave the dump behind in the temp directory.
+    """
+
+    async def __call__(self, scope, receive, send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            Path(self.path).unlink(missing_ok=True)
+
+
+@app.get("/admin/export-db")
+async def export_db(user: User = Depends(require_admin)):
+    """Export entire DB without product data (manual backup).
+
+    Keeps schema+data for stores, users, recovery_codes, maintenance_runs; products table empty.
+    The copy runs in a thread and the file is streamed, so neither the event loop nor
+    memory scales with the database size.
+    """
+    src_path = Path("nebacaj.db").resolve()
+    if not src_path.exists():
+        raise HTTPException(status_code=404, detail="Database file not found")
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tf:
+        dst_path = Path(tf.name)
+    try:
+        await asyncio.to_thread(_copy_db_without_products, src_path, dst_path)
+    except BaseException:
+        dst_path.unlink(missing_ok=True)
+        raise
+
+    # This dump contains password and recovery-code hashes, so record who took it.
+    logger.warning(
+        "DB export requested by admin %s (%d bytes, products excluded)",
+        user.email,
+        dst_path.stat().st_size,
+    )
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # FileResponse streams lazily, after this handler returns, so the temp file has to
+    # outlive it; _TempDbFileResponse removes it once the body is done being sent.
+    return _TempDbFileResponse(
+        dst_path,
+        media_type="application/vnd.sqlite3",
+        filename=f"nebacaj_db_no_products_{ts}.db",
+    )
 
 
 @app.post("/products/{product_id}/reactivate", response_model=ProductResponse)
