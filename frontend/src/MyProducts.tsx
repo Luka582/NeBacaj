@@ -421,7 +421,16 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="fixed inset-0 z-[2100] flex flex-col bg-white">
+      <form
+        onSubmit={handleSubmit}
+        className="fixed inset-0 z-[2100] flex flex-col bg-white"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation()
+            onCancel()
+          }
+        }}
+      >
       <header className="sticky top-0 z-10 shrink-0 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
           <button
@@ -881,7 +890,15 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
   const pillDelete = 'rounded-lg border border-red-100 px-2.5 py-1.5 text-xs font-semibold text-red-500 active:bg-red-50'
 
   return (
-    <div className="fixed inset-0 z-[2000] flex flex-col bg-white">
+    <div
+      className="fixed inset-0 z-[2000] flex flex-col bg-white"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation()
+          onClose()
+        }
+      }}
+    >
       <header className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
           <button

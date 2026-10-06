@@ -152,7 +152,15 @@ function StoreDetail({
   const typeLabel = store ? STORE_LABELS[store.store_type] ?? 'Ostalo' : ''
 
   return (
-    <div className="fixed inset-0 z-[2000] flex flex-col overflow-y-auto overscroll-contain bg-white">
+    <div
+      className="fixed inset-0 z-[2000] flex flex-col overflow-y-auto overscroll-contain bg-white"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation()
+          onClose()
+        }
+      }}
+    >
       <header className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 backdrop-blur">
         <div className="mx-auto w-full max-w-lg px-4 py-3 md:max-w-2xl">
           <div className="flex items-center gap-3">

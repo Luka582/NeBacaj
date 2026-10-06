@@ -289,6 +289,14 @@ function SettingsMenu({ open, onClose, onOpenMyProducts }: SettingsMenuProps) {
         open ? 'pointer-events-auto translate-x-0 opacity-100' : '-translate-x-full opacity-0'
       }`}
       style={{ height: vh }}
+      inert={!open}
+      aria-hidden={!open}
+      onKeyDown={(e) => {
+        if (open && e.key === 'Escape') {
+          e.stopPropagation()
+          onClose()
+        }
+      }}
     >
       <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-2 py-3">
         <button
