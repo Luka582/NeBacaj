@@ -22,6 +22,7 @@ export interface ProductSearchResult {
 
 const PEEK_HEIGHT = 140
 const SNAP_DRAG_DISTANCE = 100
+const DRAG_SLOP_DISTANCE = 8
 export const SIDE_PANEL_WIDTH = 380
 
 interface ProductSheetProps {
@@ -55,6 +56,10 @@ export default function ProductSheet({
   const [dragging, setDragging] = useState(false)
   const [vh] = useState(() => window.innerHeight)
   const dragRef = useRef<{ startY: number; wasExpanded: boolean } | null>(null)
+  // The native pointerup handler and the React onClick both fire after a drag.
+  // This marks the gesture as a real drag so only the drag decides the outcome
+  // and the subsequent click cannot toggle a second time.
+  const draggedRef = useRef(false)
 
   useEffect(() => {
     if (!expanded && focusedSearch.current === 'product') {
@@ -79,6 +84,7 @@ export default function ProductSheet({
         if (delta > SNAP_DRAG_DISTANCE) onExpandedChange(true)
         else if (delta < -SNAP_DRAG_DISTANCE) onExpandedChange(false)
         else onExpandedChange(start.wasExpanded)
+        draggedRef.current = Math.abs(delta) > DRAG_SLOP_DISTANCE
       }
       dragRef.current = null
       setDragHeight(null)
@@ -102,6 +108,7 @@ export default function ProductSheet({
       /* pointer already released */
     }
     dragRef.current = { startY: e.clientY, wasExpanded: expanded }
+    draggedRef.current = false
     setDragHeight(expanded ? window.innerHeight : PEEK_HEIGHT)
     setDragging(true)
   }
@@ -262,7 +269,15 @@ export default function ProductSheet({
             type="button"
             aria-expanded={expanded}
             onPointerDown={beginDrag}
-            onClick={() => onExpandedChange(!expanded)}
+            onClick={(e) => {
+              const afterDrag = draggedRef.current
+              draggedRef.current = false
+              // Only the pointer click that follows a drag is swallowed. A
+              // keyboard activation has detail 0 and must still toggle, even
+              // when the drag ended in pointercancel and produced no click.
+              if (afterDrag && e.detail > 0) return
+              onExpandedChange(!expanded)
+            }}
             className={`flex w-full touch-none flex-col items-center rounded-xl outline-none select-none active:bg-brand-50 ${
               expanded ? 'py-4' : 'py-1'
             }`}
