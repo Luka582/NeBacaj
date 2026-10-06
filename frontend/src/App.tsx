@@ -461,6 +461,7 @@ function App() {
     try {
       localStorage.setItem('lastTown', town)
     } catch {
+      /* ignore */
     }
     setRecentTowns((prev) => {
       const next = [town, ...prev.filter((t) => t !== town)].slice(0, 5)
@@ -489,6 +490,10 @@ function App() {
   }, [selectedStoreType])
 
   function handleUseMyLocation() {
+    requestLocation()
+  }
+
+  function requestLocation(options?: { maximumAge?: number }) {
     const fallback = () => fitToStores(filtered)
     if (!navigator.geolocation) {
       fallback()
@@ -514,15 +519,21 @@ function App() {
               try {
                 localStorage.setItem('lastTown', town)
               } catch {
+                /* ignore */
               }
             }
           })
           .catch(() => {})
       },
       fallback,
-      { timeout: 8000, maximumAge: 60000, enableHighAccuracy: false },
+      { timeout: 8000, maximumAge: options?.maximumAge ?? 60000, enableHighAccuracy: false },
     )
   }
+
+  useEffect(() => {
+    requestLocation({ maximumAge: 0 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const q = productSearchQuery.trim()
