@@ -11,6 +11,7 @@ import MyProducts from './MyProducts'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
 import { cropImageUrl, formatMinutes } from './format'
 import { useNowMinutes } from './useNowMinutes'
+import { useViewportHeight } from './useViewportHeight'
 
 const CARTO_KEY = __CARTO_API_KEY__
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
@@ -434,7 +435,7 @@ function App() {
 
   const towns = Array.from(new Set(stores.map((s) => s.town))).sort()
   const hasRecentTowns = recentTowns.some((t) => towns.includes(t))
-  const townListMaxHeight = Math.max(120, window.innerHeight - 140)
+  const townListMaxHeight = Math.max(120, useViewportHeight() - 140)
 
   function storesForTown(town: string): Store[] {
     return stores.filter((s) => s.town === town)

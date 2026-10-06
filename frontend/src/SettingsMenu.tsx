@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { dismissKeyboard } from './tapHandlers'
 import type { Session } from './auth'
 import { useSession, saveSession, clearSession } from './auth'
+import { useViewportHeight } from './useViewportHeight'
 
 // Public contact address, read from CONTACT_EMAIL in .env and inlined at build time by
 // vite.config.ts. Falls back to the previous hardcoded address so a build without .env
@@ -75,7 +76,7 @@ interface SettingsMenuProps {
 
 function SettingsMenu({ open, onClose, onOpenMyProducts }: SettingsMenuProps) {
   const session = useSession()
-  const [vh] = useState(() => window.innerHeight)
+  const vh = useViewportHeight()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [oldPassword, setOldPassword] = useState('')

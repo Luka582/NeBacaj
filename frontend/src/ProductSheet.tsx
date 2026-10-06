@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { cropImageUrl, formatPrice } from './format'
 import FreeTag from './FreeTag'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
+import { useViewportHeight } from './useViewportHeight'
 
 export interface ProductSearchResult {
   product_id: string
@@ -54,7 +55,7 @@ export default function ProductSheet({
 }: ProductSheetProps) {
   const [dragHeight, setDragHeight] = useState<number | null>(null)
   const [dragging, setDragging] = useState(false)
-  const [vh] = useState(() => window.innerHeight)
+  const vh = useViewportHeight()
   const dragRef = useRef<{ startY: number; wasExpanded: boolean } | null>(null)
   // The native pointerup handler and the React onClick both fire after a drag.
   // This marks the gesture as a real drag so only the drag decides the outcome
