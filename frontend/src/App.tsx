@@ -14,7 +14,7 @@ import { tapHandlers, dismissKeyboard } from './tapHandlers'
 import { cropImageUrl, formatMinutes } from './format'
 import { useNowMinutes } from './useNowMinutes'
 import { useViewportHeight } from './useViewportHeight'
-import { useBackLayer, enableBackGuard, confirmLeave } from './backStack'
+import { useBackLayer, enableBackGuard } from './backStack'
 
 const CARTO_KEY = __CARTO_API_KEY__
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
@@ -1085,19 +1085,9 @@ function App() {
               <button
                 type="button"
                 onClick={() => setLeaveConfirmOpen(false)}
-                className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-600"
-              >
-                Ostani
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setLeaveConfirmOpen(false)
-                  confirmLeave()
-                }}
                 className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white"
               >
-                Napusti
+                Ostani
               </button>
             </div>
           </div>
