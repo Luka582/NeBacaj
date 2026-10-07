@@ -72,9 +72,10 @@ interface SettingsMenuProps {
   open: boolean
   onClose: () => void
   onOpenMyProducts: () => void
+  onOpenAnnouncement: () => void
 }
 
-function SettingsMenu({ open, onClose, onOpenMyProducts }: SettingsMenuProps) {
+function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement }: SettingsMenuProps) {
   const session = useSession()
   const vh = useViewportHeight()
   const [email, setEmail] = useState('')
@@ -386,6 +387,13 @@ function SettingsMenu({ open, onClose, onOpenMyProducts }: SettingsMenuProps) {
               className="w-full rounded-lg bg-brand-600 py-3 text-sm font-semibold text-white active:bg-brand-700"
             >
               Moji proizvodi
+            </button>
+            <button
+              type="button"
+              onClick={onOpenAnnouncement}
+              className="w-full rounded-lg border border-slate-200 py-3 text-sm font-semibold text-brand-700 active:bg-brand-50"
+            >
+              Opšte obaveštenje
             </button>
             <button
               type="button"

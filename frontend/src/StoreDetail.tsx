@@ -3,6 +3,8 @@ import { cropImageUrl, formatMinutes, formatPrice, getSerbiaWeekday, relativeTim
 import { useNowMinutes } from './useNowMinutes'
 import FreeTag from './FreeTag'
 import ProductDetail from './ProductDetail'
+import AnnouncementTag from './AnnouncementTag'
+import AnnouncementDetail from './AnnouncementDetail'
 
 interface StoreDetailData {
   id: string
@@ -39,6 +41,7 @@ interface Product {
   name: string
   image_url?: string | null
   creation_date: string
+  is_announcement?: boolean
 }
 
 const STORE_LABELS: Record<string, string> = {
@@ -95,6 +98,7 @@ function StoreDetail({
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [productDetailId, setProductDetailId] = useState<string | null>(null)
+  const [announcementDetail, setAnnouncementDetail] = useState<{ storeId: string; storeName: string } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -378,7 +382,11 @@ function StoreDetail({
                     <li key={p.id}>
                       <button
                         type="button"
-                        onClick={() => setProductDetailId(p.id)}
+                        onClick={() =>
+                          p.is_announcement
+                            ? setAnnouncementDetail({ storeId: storeId, storeName: store?.name ?? '' })
+                            : setProductDetailId(p.id)
+                        }
                         className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm active:bg-brand-50"
                       >
                         {p.image_url ? (
@@ -414,21 +422,23 @@ function StoreDetail({
                           )}
                         </div>
                         <div className="shrink-0 text-right">
-                          {p.new_price == null ? (
+                          {p.is_announcement ? (
+                            <AnnouncementTag />
+                          ) : p.new_price == null ? (
                             <p className="text-xs text-slate-400">Cena nije istaknuta</p>
                           ) : p.new_price === 0 ? (
                             <FreeTag />
                           ) : (
                             <p className="text-sm font-bold text-red-600">{formatPrice(p.new_price)}</p>
                           )}
-                          {p.old_price != null && p.new_price != null && p.new_price !== 0 && p.old_price > p.new_price && (
+                          {!p.is_announcement && p.old_price != null && p.new_price != null && p.new_price !== 0 && p.old_price > p.new_price && (
                             <>
                               <span className="mt-0.5 inline-block rounded-full bg-red-500 px-1.5 py-px text-[10px] font-bold text-white">
                                 −{Math.round((1 - p.new_price / p.old_price) * 100)}%
                               </span>
                             </>
                           )}
-                          {p.old_price != null && p.new_price != null && p.old_price > p.new_price && (
+                          {!p.is_announcement && p.old_price != null && p.new_price != null && p.old_price > p.new_price && (
                             <>
                               <p className="text-xs text-slate-400 line-through">{formatPrice(p.old_price)}</p>
                             </>
@@ -462,6 +472,17 @@ function StoreDetail({
           onViewStore={(storeId) => {
             setProductDetailId(null)
             onViewStore?.(storeId)
+          }}
+        />
+      )}
+      {announcementDetail && (
+        <AnnouncementDetail
+          storeId={announcementDetail.storeId}
+          storeName={announcementDetail.storeName}
+          onBack={() => setAnnouncementDetail(null)}
+          onViewStore={(id) => {
+            setAnnouncementDetail(null)
+            onViewStore?.(id)
           }}
         />
       )}

@@ -4,6 +4,8 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import StoreDetail from './StoreDetail'
 import ProductDetail from './ProductDetail'
+import Announcement from './Announcement'
+import AnnouncementDetail from './AnnouncementDetail'
 import ProductSheet, { type ProductSearchResult, SIDE_PANEL_WIDTH } from './ProductSheet'
 import { type LatLngBounds, boundsForStores, fitView } from './mapFit'
 import SettingsMenu from './SettingsMenu'
@@ -298,6 +300,8 @@ function App() {
   const [detailStoreId, setDetailStoreId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [myProductsOpen, setMyProductsOpen] = useState(false)
+  const [announcementOpen, setAnnouncementOpen] = useState(false)
+  const [announcementDetail, setAnnouncementDetail] = useState<{ storeId: string; storeName: string } | null>(null)
   const [showHint, setShowHint] = useState<boolean>(() => {
     try {
       return localStorage.getItem('nebacajHintDismissed') !== '1'
@@ -364,7 +368,7 @@ function App() {
   }, [detailStoreId, searchProductOpen])
 
   useEffect(() => {
-    if (!(inputFocused || detailStoreId != null || searchProductOpen != null || settingsOpen || myProductsOpen)) return
+    if (!(inputFocused || detailStoreId != null || searchProductOpen != null || settingsOpen || myProductsOpen || announcementOpen || announcementDetail != null)) return
     const de = document.documentElement
     const prevBody = document.body.style.overflow
     const prevBodyOverscroll = document.body.style.overscrollBehavior
@@ -380,7 +384,7 @@ function App() {
       de.style.overflow = prevDoc
       de.style.overscrollBehavior = prevDocOverscroll
     }
-  }, [inputFocused, detailStoreId, searchProductOpen, settingsOpen, myProductsOpen])
+  }, [inputFocused, detailStoreId, searchProductOpen, settingsOpen, myProductsOpen, announcementOpen, announcementDetail])
 
   const applyStores = (data: unknown) => {
     const stores = parseStores(data)
@@ -578,6 +582,11 @@ function App() {
   function openProductFromSearch(result: ProductSearchResult) {
     requestSeq.current += 1
     setMapRequest({ seq: requestSeq.current, type: 'store', lat: result.latitude, lng: result.longitude })
+    if (result.is_announcement) {
+      setSearchProductOpen(null)
+      setAnnouncementDetail({ storeId: result.store_id, storeName: result.store_name })
+      return
+    }
     setSearchProductOpen({ productId: result.product_id, storeName: result.store_name })
   }
 
@@ -993,8 +1002,26 @@ function App() {
           setSettingsOpen(false)
           setMyProductsOpen(true)
         }}
+        onOpenAnnouncement={() => {
+          setSettingsOpen(false)
+          setAnnouncementOpen(true)
+        }}
       />
       {myProductsOpen && <MyProducts onClose={() => setMyProductsOpen(false)} onChanged={loadStores} />}
+      {announcementOpen && (
+        <Announcement onClose={() => setAnnouncementOpen(false)} onSaved={loadStores} />
+      )}
+      {announcementDetail && (
+        <AnnouncementDetail
+          storeId={announcementDetail.storeId}
+          storeName={announcementDetail.storeName}
+          onBack={() => setAnnouncementDetail(null)}
+          onViewStore={(storeId) => {
+            setAnnouncementDetail(null)
+            openStorePopup(storeId)
+          }}
+        />
+      )}
       {searchProductOpen && (
         <ProductDetail
           productId={searchProductOpen.productId}

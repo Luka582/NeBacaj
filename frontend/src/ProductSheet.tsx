@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { cropImageUrl, formatPrice } from './format'
 import FreeTag from './FreeTag'
+import AnnouncementTag from './AnnouncementTag'
 import { tapHandlers, dismissKeyboard } from './tapHandlers'
 import { useViewportHeight } from './useViewportHeight'
 
@@ -19,6 +20,7 @@ export interface ProductSearchResult {
   latitude: number
   longitude: number
   distance_km?: number | null
+  is_announcement?: boolean
 }
 
 const PEEK_HEIGHT = 140
@@ -230,24 +232,28 @@ export default function ProductSheet({
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-slate-900">{r.product_name}</p>
               <p className="truncate text-xs text-slate-500">
-                {r.store_name} · {r.street} {r.street_number}, {r.town}
+                {r.is_announcement
+                  ? `${r.street} ${r.street_number}, ${r.town}`
+                  : `${r.store_name} · ${r.street} ${r.street_number}, ${r.town}`}
                 {r.distance_km != null && <span> · {r.distance_km} km</span>}
               </p>
             </div>
             <div className="shrink-0 text-right">
-              {r.new_price == null ? (
+              {r.is_announcement ? (
+                <AnnouncementTag />
+              ) : r.new_price == null ? (
                 <p className="text-xs text-slate-400">Cena nije istaknuta</p>
               ) : r.new_price === 0 ? (
                 <FreeTag />
               ) : (
                 <p className="text-sm font-bold text-red-600">{formatPrice(r.new_price)}</p>
               )}
-              {r.old_price != null && r.new_price != null && r.new_price !== 0 && r.old_price > r.new_price && (
+              {!r.is_announcement && r.old_price != null && r.new_price != null && r.new_price !== 0 && r.old_price > r.new_price && (
                 <span className="mt-0.5 inline-block rounded-full bg-red-500 px-1.5 py-px text-[10px] font-bold text-white">
                   −{Math.round((1 - r.new_price / r.old_price) * 100)}%
                 </span>
               )}
-              {r.old_price != null && r.new_price != null && r.old_price > r.new_price && (
+              {!r.is_announcement && r.old_price != null && r.new_price != null && r.old_price > r.new_price && (
                 <p className="text-xs text-slate-400 line-through">{formatPrice(r.old_price)}</p>
               )}
             </div>

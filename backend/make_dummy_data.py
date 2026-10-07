@@ -8,8 +8,9 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 
-from .db import Product, Store, StoreType, async_session, engine, init_db
+from .db import Product, Store, StoreType, User, UserRole, async_session, engine, init_db
 from .images import product_image_url, store_image_url
+from .security import hash_password
 
 DB_FILE = "nebacaj.db"
 SERBIA_TZ = ZoneInfo("Europe/Belgrade")
@@ -157,6 +158,15 @@ def _make_store(town: str, streets: list[str], coords: tuple[float, float], is_a
     )
 
 
+def _add_announcement(store: Store) -> None:
+    for key in ("mon", "tue", "wed", "thu", "fri", "sat", "sun"):
+        setattr(store, f"announcement_open_min_{key}", getattr(store, f"opening_minute_{key}"))
+        setattr(store, f"announcement_work_min_{key}", getattr(store, f"working_minutes_{key}"))
+    store.announcement_periodic = True
+    store.announcement_description = "Opšti opis obaveštenja prodavnice - aktuelna ponuda i informacije."
+    store.announcement_image_url = store_image_url()
+
+
 def _make_product(store: Store, index: int) -> Product:
     amount = randint(1, 30) if randint(0, 1) else None
     old_price=round(uniform(5, 150), 2)
@@ -195,10 +205,24 @@ async def populate() -> None:
             for i, coord in enumerate(coords):
                 is_active = i != 0
                 store = _make_store(town, streets, coord, is_active)
+                if is_active and i % 2 == 0:
+                    _add_announcement(store)
                 session.add(store)
                 stores.append(store)
 
         await session.flush()
+
+        demo_store = stores[1]
+        session.add(
+            User(
+                email="radnik@primer.rs",
+                password_hash=hash_password("radnik123"),
+                name="Demo radnik",
+                role=UserRole.worker,
+                store_id=demo_store.id,
+                must_change_password=False,
+            )
+        )
 
         for store in stores:
             for i in range(randint(0, 8)):
@@ -206,6 +230,7 @@ async def populate() -> None:
 
         await session.commit()
         print(f"Baza podataka popunjena sa {len(stores)} prodavnica i njihovih proizvoda.")
+        print("Demo radnik: radnik@primer.rs / radnik123")
 
 
 async def main() -> None:

@@ -178,6 +178,24 @@ class StoreResponse(BaseModel):
     working_minutes_sat: int
     opening_minute_sun: int
     working_minutes_sun: int
+    announcement_description: str | None = None
+    announcement_image_url: str | None = None
+    announcement_periodic: bool = False
+    announcement_activated_at: datetime | None = None
+    announcement_open_min_mon: int | None = None
+    announcement_work_min_mon: int | None = None
+    announcement_open_min_tue: int | None = None
+    announcement_work_min_tue: int | None = None
+    announcement_open_min_wed: int | None = None
+    announcement_work_min_wed: int | None = None
+    announcement_open_min_thu: int | None = None
+    announcement_work_min_thu: int | None = None
+    announcement_open_min_fri: int | None = None
+    announcement_work_min_fri: int | None = None
+    announcement_open_min_sat: int | None = None
+    announcement_work_min_sat: int | None = None
+    announcement_open_min_sun: int | None = None
+    announcement_work_min_sun: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -229,6 +247,7 @@ class ProductMinimalResponse(BaseModel):
     name: str
     image_url: str | None = None
     creation_date: datetime
+    is_announcement: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -254,5 +273,27 @@ class ProductSearchResult(BaseModel):
     latitude: float
     longitude: float
     distance_km: float | None = None
+    is_announcement: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class AnnouncementUpdate(BaseModel):
+    description: str | None = None
+    image_url: str | None = None
+    periodic: bool | None = None
+    manual_active: bool | None = None
+    open_min_mon: int | None = Field(default=None, ge=0, lt=1440)
+    work_min_mon: int | None = Field(default=None, ge=0)
+    open_min_tue: int | None = Field(default=None, ge=0, lt=1440)
+    work_min_tue: int | None = Field(default=None, ge=0)
+    open_min_wed: int | None = Field(default=None, ge=0, lt=1440)
+    work_min_wed: int | None = Field(default=None, ge=0)
+    open_min_thu: int | None = Field(default=None, ge=0, lt=1440)
+    work_min_thu: int | None = Field(default=None, ge=0)
+    open_min_fri: int | None = Field(default=None, ge=0, lt=1440)
+    work_min_fri: int | None = Field(default=None, ge=0)
+    open_min_sat: int | None = Field(default=None, ge=0, lt=1440)
+    work_min_sat: int | None = Field(default=None, ge=0)
+    open_min_sun: int | None = Field(default=None, ge=0, lt=1440)
+    work_min_sun: int | None = Field(default=None, ge=0)

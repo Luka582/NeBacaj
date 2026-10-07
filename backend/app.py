@@ -26,6 +26,7 @@ from .db import MaintenanceRun, Store, Product, User, UserRole, RecoveryCode, St
 from .emailer import send_recovery_code, send_temporary_password
 from .images import delete_image, upload_image
 from .schemas import (
+    AnnouncementUpdate,
     ChangePasswordRequest,
     LoginRequest,
     ProductCreate,
@@ -152,6 +153,9 @@ DAY_DURATION_COLUMNS = {
 }
 
 
+ANNOUNCEMENT_DAY_KEYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+
 def _schedule(store: Store, weekday: int) -> tuple[int, int]:
     """Return (opening_minute, closing_minute) of the shift that starts on ``weekday``."""
     opening = int(getattr(store, DAY_OPEN_COLUMNS[weekday].key))
@@ -200,6 +204,89 @@ def _shift_window(store: Store, reference: datetime) -> tuple[datetime, datetime
 
     shift_start = datetime.combine(start_date, time()) + timedelta(minutes=opening)
     return shift_start, shift_start + timedelta(minutes=closing - opening)
+
+
+def _announcement_schedule(store: Store, weekday: int) -> tuple[int, int] | None:
+    """Return (open_minute, work_minutes) of the announcement schedule for ``weekday`` or None."""
+    key = ANNOUNCEMENT_DAY_KEYS[weekday]
+    opening = getattr(store, f"announcement_open_min_{key}")
+    working = getattr(store, f"announcement_work_min_{key}")
+    if opening is None or working is None:
+        return None
+    return int(opening), int(working)
+
+
+def _announcement_active(store: Store, reference: datetime) -> bool:
+    """Whether the store's announcement is visible at ``reference`` (naive Serbia wall time)."""
+    if not store.announcement_periodic:
+        if store.announcement_activated_at is None:
+            return False
+        window = _shift_window(store, reference)
+        if window is None:
+            return False
+        start, end = window
+        activated = _normalize_serbia_wall(store.announcement_activated_at)
+        return start <= activated < end
+
+    current = reference.hour * 60 + reference.minute
+    today = reference.weekday()
+    today_sched = _announcement_schedule(store, today)
+    if today_sched is not None and today_sched[0] <= current < today_sched[0] + today_sched[1]:
+        return True
+
+    yesterday = (today + 6) % 7
+    y_sched = _announcement_schedule(store, yesterday)
+    if y_sched is not None:
+        y_open, y_work = y_sched
+        if y_open + y_work > 1440 and current < y_open + y_work - 1440:
+            return True
+    return False
+
+
+def _announcement_effective_time(store: Store, reference: datetime) -> datetime | None:
+    """Sort/creation timestamp of the currently active announcement, or None when inactive."""
+    if not _announcement_active(store, reference):
+        return None
+    if not store.announcement_periodic:
+        return _normalize_serbia_wall(store.announcement_activated_at or reference)
+
+    current = reference.hour * 60 + reference.minute
+    today = reference.weekday()
+    today_sched = _announcement_schedule(store, today)
+    if today_sched is not None and today_sched[0] <= current < today_sched[0] + today_sched[1]:
+        start_date = reference.date()
+        opening = today_sched[0]
+    else:
+        yesterday = (today + 6) % 7
+        y_sched = _announcement_schedule(store, yesterday)
+        start_date = reference.date() - timedelta(days=1)
+        opening = y_sched[0] if y_sched is not None else 0
+    return datetime.combine(start_date, time()) + timedelta(minutes=opening)
+
+
+def _validate_announcement_schedule(
+    store: Store,
+    open_by_day: dict[int, int | None],
+    work_by_day: dict[int, int | None],
+) -> None:
+    for weekday, key in enumerate(ANNOUNCEMENT_DAY_KEYS):
+        opening = open_by_day[weekday]
+        working = work_by_day[weekday]
+        if opening is None and working is None:
+            continue
+        if opening is None or working is None:
+            raise HTTPException(status_code=422, detail="Announcement schedule needs both start and duration")
+        if working <= 0:
+            raise HTTPException(status_code=422, detail="Announcement working minutes must be positive")
+        store_open = getattr(store, f"opening_minute_{key}")
+        store_work = getattr(store, f"working_minutes_{key}")
+        if store_work <= 0:
+            raise HTTPException(status_code=422, detail="Announcements cannot be scheduled on a closed day")
+        if opening < store_open or opening + working > store_open + store_work:
+            raise HTTPException(
+                status_code=422,
+                detail="Announcement schedule must fall within the store's working hours",
+            )
 
 
 def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -289,6 +376,10 @@ async def get_stores(
         start, end = window
         count_map[s.id] = sum(1 for store_id, created in recent_rows if store_id == s.id and start <= created < end)
 
+    for s in stores:
+        if _announcement_active(s, now):
+            count_map[s.id] = count_map.get(s.id, 0) + 1
+
     response = []
     for s in stores:
         opening, closing = _active_shift(s, today, current_minutes) or _schedule(s, today)
@@ -370,9 +461,9 @@ async def search_products(
         stmt = stmt.where(Store.store_type == store_type)
 
     rows = (await db.execute(stmt)).all()
+    reference = datetime.now(SERBIA_TZ)
 
     if only_opened or today_only:
-        reference = datetime.now(SERBIA_TZ)
         today = reference.weekday()
         current_minutes = reference.hour * 60 + reference.minute
         kept: list[tuple[Product, Store]] = []
@@ -407,14 +498,57 @@ async def search_products(
             distance_km=distance_km,
         )
 
-    if lat is not None and lng is not None:
-        dists = {product.id: haversine_km(lat, lng, store.latitude, store.longitude) for product, store in rows}
-        rows.sort(key=lambda r: r[0].creation_date, reverse=True)
-        rows.sort(key=lambda r: dists[r[0].id])
-        return [to_result(product, store, round(dists[product.id], 2)) for product, store in rows[:limit]]
+    store_stmt = select(Store).where(Store.is_active.is_(True))
+    if town:
+        store_stmt = store_stmt.where(Store.town == town)
+    if store_type:
+        store_stmt = store_stmt.where(Store.store_type == store_type)
+    candidate_stores = (await db.execute(store_stmt)).scalars().all()
+    today = reference.weekday()
+    current_minutes = reference.hour * 60 + reference.minute
 
-    rows.sort(key=lambda r: r[0].creation_date, reverse=True)
-    return [to_result(product, store, None) for product, store in rows[:limit]]
+    def announcement_result(store: Store, distance_km: float | None) -> ProductSearchResult:
+        return ProductSearchResult(
+            product_id=f"announcement:{store.id}",
+            product_name=store.name,
+            amount=None,
+            old_price=None,
+            new_price=None,
+            image_url=store.announcement_image_url,
+            store_id=store.id,
+            store_name=store.name,
+            town=store.town,
+            street=store.street,
+            street_number=store.street_number,
+            latitude=store.latitude,
+            longitude=store.longitude,
+            distance_km=distance_km,
+            is_announcement=True,
+        )
+
+    items: list[tuple[datetime, ProductSearchResult]] = [
+        (product.creation_date, to_result(product, store, None)) for product, store in rows
+    ]
+    for store in candidate_stores:
+        if q and q.lower() not in store.name.lower():
+            continue
+        if only_opened and _active_shift(store, today, current_minutes) is None:
+            continue
+        effective = _announcement_effective_time(store, reference)
+        if effective is None:
+            continue
+        items.append((effective, announcement_result(store, None)))
+
+    if lat is not None and lng is not None:
+        dists = {result.product_id: haversine_km(lat, lng, result.latitude, result.longitude) for _, result in items}
+        for _, result in items:
+            result.distance_km = round(dists[result.product_id], 2)
+        items.sort(key=lambda item: item[0], reverse=True)
+        items.sort(key=lambda item: item[1].distance_km or 0.0)
+        return [result for _, result in items[:limit]]
+
+    items.sort(key=lambda item: item[0], reverse=True)
+    return [result for _, result in items[:limit]]
 
 
 @app.get("/products/{store_id}", response_model=list[ProductMinimalResponse])
@@ -431,10 +565,12 @@ async def get_products(
     """
     stmt = select(Product).where(Product.store_id == store_id, Product.is_active == is_active)
 
+    store = None
+    reference = datetime.now(SERBIA_TZ)
     if today_only:
         store_result = await db.execute(select(Store).where(Store.id == store_id))
         store = store_result.scalar_one_or_none()
-        window = _shift_window(store, datetime.now(SERBIA_TZ)) if store is not None else None
+        window = _shift_window(store, reference) if store is not None else None
         if window is None:
             return []
         start, end = window
@@ -442,7 +578,25 @@ async def get_products(
 
     result = await db.execute(stmt)
     products = result.scalars().all()
-    return [ProductMinimalResponse.model_validate(p) for p in products]
+    response = [ProductMinimalResponse.model_validate(p) for p in products]
+
+    if today_only and is_active and store is not None:
+        effective = _announcement_effective_time(store, reference)
+        if effective is not None:
+            response.insert(
+                0,
+                ProductMinimalResponse(
+                    id=f"announcement:{store_id}",
+                    amount=None,
+                    old_price=None,
+                    new_price=None,
+                    name=store.name,
+                    image_url=store.announcement_image_url,
+                    creation_date=effective,
+                    is_announcement=True,
+                ),
+            )
+    return response
 
 
 @app.get("/towns", response_model=list[str])
@@ -588,8 +742,10 @@ async def _apply_image(
     image: UploadFile | None,
     image_url: str | None,
     image_url_set: bool,
+    url_attr: str = "image_url",
+    file_attr: str = "image_file_id",
 ) -> None:
-    old_file_id = entity.image_file_id
+    old_file_id = getattr(entity, file_attr)
     if image is not None:
         if image_url_set:
             raise HTTPException(status_code=400, detail="Provide either image_url or an image file, not both")
@@ -603,22 +759,27 @@ async def _apply_image(
             )
         except Exception as exc:
             raise HTTPException(status_code=502, detail="Image upload failed") from exc
-        entity.image_url = url
-        entity.image_file_id = file_id
+        setattr(entity, url_attr, url)
+        setattr(entity, file_attr, file_id)
         if old_file_id and old_file_id != file_id:
             await delete_image(old_file_id)
     elif image_url_set:
-        entity.image_url = image_url
-        entity.image_file_id = None
+        setattr(entity, url_attr, image_url)
+        setattr(entity, file_attr, None)
         if old_file_id:
             await delete_image(old_file_id)
 
 
-async def _clear_image(entity: Store | Product) -> None:
-    if entity.image_file_id:
-        await delete_image(entity.image_file_id)
-        entity.image_url = None
-    entity.image_file_id = None
+async def _clear_image(
+    entity: Store | Product,
+    url_attr: str = "image_url",
+    file_attr: str = "image_file_id",
+) -> None:
+    file_id = getattr(entity, file_attr)
+    if file_id:
+        await delete_image(file_id)
+        setattr(entity, url_attr, None)
+    setattr(entity, file_attr, None)
 
 
 def _prune_login_attempts() -> None:
@@ -783,6 +944,75 @@ async def update_store(
     for field, value in fields.items():
         setattr(store, field, value)
     await _apply_image(store, "/stores", image, body.image_url, image_url_set)
+    await db.commit()
+    return StoreResponse.model_validate(store)
+
+
+@app.put("/stores/{store_id}/announcement", response_model=StoreResponse)
+async def update_announcement(
+    store_id: str,
+    data: str = Form(...),
+    image: UploadFile | None = File(default=None),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> StoreResponse:
+    """PUT /stores/{id}/announcement — create or edit the store's general announcement.
+
+    Editing description, image and periodic schedule is allowed while the store is closed.
+    Only the explicit manual activate/deactivate toggle requires the store to be open.
+    """
+    store = await _get_store_or_404(store_id, db)
+    _ensure_store_access(user, store_id)
+    body = _parse_form_json(data, AnnouncementUpdate)
+    fields = body.model_dump(exclude_unset=True)
+    image_url_set = "image_url" in fields
+
+    if "description" in fields:
+        store.announcement_description = body.description
+
+    switched = False
+    if "periodic" in fields:
+        switched = body.periodic != store.announcement_periodic
+        store.announcement_periodic = bool(body.periodic)
+        if switched:
+            store.announcement_activated_at = None
+
+    schedule_present = any(
+        f"open_min_{key}" in fields or f"work_min_{key}" in fields for key in ANNOUNCEMENT_DAY_KEYS
+    )
+    if schedule_present:
+        if not store.announcement_periodic:
+            raise HTTPException(status_code=422, detail="A schedule can only be set in periodic mode")
+        open_by_day: dict[int, int | None] = {}
+        work_by_day: dict[int, int | None] = {}
+        for weekday, key in enumerate(ANNOUNCEMENT_DAY_KEYS):
+            open_by_day[weekday] = fields.get(
+                f"open_min_{key}", getattr(store, f"announcement_open_min_{key}")
+            )
+            work_by_day[weekday] = fields.get(
+                f"work_min_{key}", getattr(store, f"announcement_work_min_{key}")
+            )
+        _validate_announcement_schedule(store, open_by_day, work_by_day)
+        for weekday, key in enumerate(ANNOUNCEMENT_DAY_KEYS):
+            setattr(store, f"announcement_open_min_{key}", open_by_day[weekday])
+            setattr(store, f"announcement_work_min_{key}", work_by_day[weekday])
+
+    if not switched and not store.announcement_periodic and "manual_active" in fields:
+        _require_store_open(store)
+        if body.manual_active:
+            store.announcement_activated_at = now_serbia()
+        else:
+            store.announcement_activated_at = now_serbia() - timedelta(hours=48)
+
+    await _apply_image(
+        store,
+        "/announcements",
+        image,
+        body.image_url,
+        image_url_set,
+        url_attr="announcement_image_url",
+        file_attr="announcement_image_file_id",
+    )
     await db.commit()
     return StoreResponse.model_validate(store)
 
