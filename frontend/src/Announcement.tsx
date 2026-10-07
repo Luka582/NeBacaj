@@ -5,6 +5,7 @@ import { cropImageUrl, formatMinutes, getSerbiaWeekday, getSerbiaMinutes } from 
 import CameraCapture from './CameraCapture'
 import { dismissKeyboard } from './tapHandlers'
 import { useViewportHeight } from './useViewportHeight'
+import { useBackLayer } from './backStack'
 
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` }
@@ -191,6 +192,10 @@ function Announcement({ onClose, onSaved }: { onClose: () => void; onSaved?: () 
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null)
+
+  useBackLayer(view !== 'main', () => setView('main'))
+  useBackLayer(cameraOpen, () => setCameraOpen(false))
+  useBackLayer(confirmRemoveOpen, () => setConfirmRemoveOpen(false))
 
   function applyStore(s: ApiStore) {
     setDescription(s.announcement_description ?? '')
@@ -746,8 +751,8 @@ function Announcement({ onClose, onSaved }: { onClose: () => void; onSaved?: () 
       )}
 
       {confirmRemoveOpen && (
-        <div className="fixed inset-0 z-[2300] flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-xs rounded-2xl bg-white p-4">
+        <div className="fixed inset-0 z-[2300] flex items-center justify-center bg-black/40 px-4" onClick={() => setConfirmRemoveOpen(false)}>
+          <div className="w-full max-w-xs rounded-2xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
             <p className="text-sm font-semibold text-slate-800">Ukloniti sliku obaveštenja?</p>
             <div className="mt-4 flex gap-2">
               <button

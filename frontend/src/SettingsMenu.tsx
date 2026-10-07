@@ -3,6 +3,7 @@ import { dismissKeyboard } from './tapHandlers'
 import type { Session } from './auth'
 import { useSession, saveSession, clearSession } from './auth'
 import { useViewportHeight } from './useViewportHeight'
+import { useBackLayer } from './backStack'
 
 // Public contact address, read from CONTACT_EMAIL in .env and inlined at build time by
 // vite.config.ts. Falls back to the previous hardcoded address so a build without .env
@@ -94,6 +95,9 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement }: S
   const [recoveryCode, setRecoveryCode] = useState('')
   const [recoveryNewPassword, setRecoveryNewPassword] = useState('')
   const [recoveryRepeat, setRecoveryRepeat] = useState('')
+
+  useBackLayer(open && changing, () => setChanging(false))
+  useBackLayer(open && recovering, () => setRecovering(false))
 
   async function handleLogin(event: React.FormEvent) {
     event.preventDefault()

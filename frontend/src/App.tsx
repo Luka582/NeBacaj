@@ -14,6 +14,7 @@ import { tapHandlers, dismissKeyboard } from './tapHandlers'
 import { cropImageUrl, formatMinutes } from './format'
 import { useNowMinutes } from './useNowMinutes'
 import { useViewportHeight } from './useViewportHeight'
+import { useBackLayer, enableBackGuard, confirmLeave } from './backStack'
 
 const CARTO_KEY = __CARTO_API_KEY__
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
@@ -128,6 +129,7 @@ type MapRequest =
   | { seq: number; type: 'town'; bounds: LatLngBounds; animate: boolean }
   | { seq: number; type: 'store'; lat: number; lng: number }
   | { seq: number; type: 'focus'; lat: number; lng: number }
+  | { seq: number; type: 'restore'; lat: number; lng: number; zoom: number }
 
 const TOWN_FIELD_BOTTOM = 60
 const STORE_TYPES_CLEARANCE = 40
@@ -181,12 +183,15 @@ function MapController({
   request,
   interactionLocked,
   invalidateSignal,
+  mapRef,
 }: {
   request: MapRequest | null
   interactionLocked: boolean
   invalidateSignal: number
+  mapRef: { current: L.Map | null }
 }) {
   const map = useMap()
+  mapRef.current = map
   const lastSeq = useRef<number>(-1)
   useEffect(() => {
     if (!request || request.seq === lastSeq.current) return
@@ -210,6 +215,11 @@ function MapController({
       const pt = map.project([request.lat, request.lng], zoom)
       const offsetX = map.getSize().x >= 768 ? SIDE_PANEL_WIDTH / 2 : 0
       map.setView(map.unproject([pt.x + offsetX, pt.y], zoom), zoom, {
+        animate: true,
+        duration: FIT_ANIM_DURATION,
+      })
+    } else if (request.type === 'restore') {
+      map.setView([request.lat, request.lng], request.zoom, {
         animate: true,
         duration: FIT_ANIM_DURATION,
       })
@@ -338,6 +348,38 @@ function App() {
   const [selectedStoreType, setSelectedStoreType] = useState<string | null>(null)
   const [invalidateSignal, setInvalidateSignal] = useState(0)
   const prevDetailOpen = useRef(false)
+  const mapRef = useRef<L.Map | null>(null)
+  const prevMapView = useRef<{ lat: number; lng: number; zoom: number } | null>(null)
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
+
+  function captureMapView() {
+    const m = mapRef.current
+    if (!m) return
+    const c = m.getCenter()
+    prevMapView.current = { lat: c.lat, lng: c.lng, zoom: m.getZoom() }
+  }
+
+  function closeStorePopup() {
+    const view = prevMapView.current
+    prevMapView.current = null
+    setSelectedStoreId(null)
+    if (view) {
+      requestSeq.current += 1
+      setMapRequest({ seq: requestSeq.current, type: 'restore', lat: view.lat, lng: view.lng, zoom: view.zoom })
+    }
+  }
+
+  useBackLayer(townSearchOpen, () => setTownSearchOpen(false))
+  useBackLayer(sheetExpanded, () => setSheetExpanded(false))
+  useBackLayer(detailStoreId != null, () => setDetailStoreId(null))
+  useBackLayer(selectedStoreId != null, closeStorePopup)
+  useBackLayer(searchProductOpen != null, () => setSearchProductOpen(null))
+  useBackLayer(settingsOpen, () => setSettingsOpen(false))
+  useBackLayer(myProductsOpen, () => setMyProductsOpen(false))
+  useBackLayer(announcementOpen, () => setAnnouncementOpen(false))
+  useBackLayer(announcementDetail != null, () => setAnnouncementDetail(null))
+
+  useEffect(() => enableBackGuard(() => setLeaveConfirmOpen(true)), [])
 
   useEffect(() => {
     if (!selectedStoreId) return
@@ -596,6 +638,7 @@ function App() {
     setSheetExpanded(false)
     const s = stores.find((st) => st.id === storeId)
     if (s) {
+      captureMapView()
       setSelectedStoreId(storeId)
       requestSeq.current += 1
       setMapRequest({ seq: requestSeq.current, type: 'focus', lat: s.latitude, lng: s.longitude })
@@ -619,7 +662,7 @@ function App() {
           subdomains="abcd"
           maxZoom={20}
         />
-        <MapController request={mapRequest} interactionLocked={inputFocused} invalidateSignal={invalidateSignal} />
+        <MapController request={mapRequest} interactionLocked={inputFocused} invalidateSignal={invalidateSignal} mapRef={mapRef} />
         {userLocation && (
           <>
             <Circle
@@ -652,6 +695,7 @@ function App() {
               }}
               eventHandlers={{
                 click: () => {
+                  captureMapView()
                   setSelectedStoreId(store.id)
                   requestSeq.current += 1
                   setMapRequest({
@@ -668,7 +712,7 @@ function App() {
                   closeButton={false}
                   autoPan={false}
                   offset={[0, -24]}
-                  eventHandlers={{ popupclose: () => setSelectedStoreId(null) }}
+                  eventHandlers={{ popupclose: () => { setSelectedStoreId(null); prevMapView.current = null } }}
                   className="store-popup"
                 >
                   <div className="store-popup-content">
@@ -718,7 +762,6 @@ function App() {
                       className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700"
                       onPointerDown={() => {
                         setDetailStoreId(store.id)
-                        setSelectedStoreId(null)
                       }}
                     >
                       Detalji o radnji
@@ -1029,6 +1072,36 @@ function App() {
           onBack={() => setSearchProductOpen(null)}
           onViewStore={openStorePopup}
         />
+      )}
+      {leaveConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[4000] flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setLeaveConfirmOpen(false)}
+        >
+          <div className="w-full max-w-xs rounded-2xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-semibold text-slate-800">Napustiti sajt?</p>
+            <p className="mt-1 text-sm text-slate-500">Da li ste sigurni da želite da odete?</p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setLeaveConfirmOpen(false)}
+                className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-600"
+              >
+                Ostani
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLeaveConfirmOpen(false)
+                  confirmLeave()
+                }}
+                className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white"
+              >
+                Napusti
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

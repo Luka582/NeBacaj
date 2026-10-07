@@ -5,6 +5,7 @@ import FreeTag from './FreeTag'
 import ProductDetail from './ProductDetail'
 import AnnouncementTag from './AnnouncementTag'
 import AnnouncementDetail from './AnnouncementDetail'
+import { useBackLayer } from './backStack'
 
 interface StoreDetailData {
   id: string
@@ -99,6 +100,9 @@ function StoreDetail({
   const [loading, setLoading] = useState(true)
   const [productDetailId, setProductDetailId] = useState<string | null>(null)
   const [announcementDetail, setAnnouncementDetail] = useState<{ storeId: string; storeName: string } | null>(null)
+
+  useBackLayer(productDetailId != null, () => setProductDetailId(null))
+  useBackLayer(announcementDetail != null, () => setAnnouncementDetail(null))
 
   useEffect(() => {
     let cancelled = false

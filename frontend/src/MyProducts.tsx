@@ -6,6 +6,7 @@ import { belgradeDateKey, cropImageUrl, formatPrice, formatShortDate } from './f
 import FreeTag from './FreeTag'
 import CameraCapture from './CameraCapture'
 import { dismissKeyboard } from './tapHandlers'
+import { useBackLayer } from './backStack'
 
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` }
@@ -89,6 +90,9 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null)
+
+  useBackLayer(cameraOpen, () => setCameraOpen(false))
+  useBackLayer(confirmRemoveOpen, () => setConfirmRemoveOpen(false))
 
   function autoResizeTextarea(el: HTMLTextAreaElement | null) {
     if (!el) return
@@ -587,6 +591,8 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<{ mode: FormMode; id: string | null } | null>(null)
   const [storeId, setStoreId] = useState<string | null>(null)
+
+  useBackLayer(form != null, () => setForm(null))
 
   async function ensureStoreId(s: Session): Promise<string | null> {
     if (storeId) return storeId
