@@ -14,7 +14,7 @@ import { tapHandlers, dismissKeyboard } from './tapHandlers'
 import { cropImageUrl, formatMinutes } from './format'
 import { useNowMinutes } from './useNowMinutes'
 import { useViewportHeight } from './useViewportHeight'
-import { useBackLayer, enableBackGuard, confirmLeave } from './backStack'
+import { useBackLayer, enableBackGuard } from './backStack'
 
 const CARTO_KEY = __CARTO_API_KEY__
 const DEFAULT_CENTER: [number, number] = [44.0165, 20.9]
@@ -378,7 +378,6 @@ function App() {
   useBackLayer(myProductsOpen, () => setMyProductsOpen(false))
   useBackLayer(announcementOpen, () => setAnnouncementOpen(false))
   useBackLayer(announcementDetail != null, () => setAnnouncementDetail(null))
-  useBackLayer(leaveConfirmOpen, confirmLeave)
 
   useEffect(() => enableBackGuard(() => setLeaveConfirmOpen(true)), [])
 
@@ -1081,9 +1080,7 @@ function App() {
         >
           <div className="w-full max-w-xs rounded-2xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
             <p className="text-sm font-semibold text-slate-800">Napustiti sajt?</p>
-            <p className="mt-1 text-sm text-slate-500">
-              Da li ste sigurni da želite da odete? Ponovo pritisnite dugme za nazad da napustite stranicu.
-            </p>
+            <p className="mt-1 text-sm text-slate-500">Da li ste sigurni da želite da odete?</p>
             <div className="mt-4 flex gap-2">
               <button
                 type="button"
