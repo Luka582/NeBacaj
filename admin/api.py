@@ -113,6 +113,9 @@ class Backend:
     def delete_store(self, store_id: str) -> None:
         self._request("DELETE", f"/stores/{store_id}")
 
+    def update_announcement(self, store_id: str, payload: dict[str, Any], image=None) -> dict:
+        return self._request("PUT", f"/stores/{store_id}/announcement", **self._multipart(payload, image))
+
     # --- products -------------------------------------------------------
     def list_products(self, store_id: str, is_active: bool = True) -> list[dict]:
         return self._request(
