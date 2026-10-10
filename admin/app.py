@@ -4,6 +4,7 @@ import datetime as dt
 import sys
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(root))
@@ -274,6 +275,189 @@ def _store_basic_payload(prefix: str, submitted_values: dict[str, Any]) -> dict:
     return payload
 
 
+SERBIA_TZ = ZoneInfo("Europe/Belgrade")
+DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+
+def _serbia_now() -> dt.datetime:
+    return dt.datetime.now(SERBIA_TZ)
+
+
+def _store_open_now(store: dict) -> bool:
+    now = _serbia_now()
+    current = now.hour * 60 + now.minute
+    today, prev = DAY_KEYS[now.weekday()], DAY_KEYS[(now.weekday() - 1) % 7]
+    opening = store.get(f"opening_minute_{today}") or 0
+    working = store.get(f"working_minutes_{today}") or 0
+    if working > 0 and opening <= current < opening + working:
+        return True
+    opening = store.get(f"opening_minute_{prev}") or 0
+    working = store.get(f"working_minutes_{prev}") or 0
+    return working > 0 and opening + working > 1440 and current < opening + working - 1440
+
+
+def _announcement_slot(store: dict, key: str) -> tuple[int, int] | None:
+    opening = store.get(f"announcement_open_min_{key}")
+    working = store.get(f"announcement_work_min_{key}")
+    if isinstance(opening, (int, float)) and isinstance(working, (int, float)) and working > 0:
+        return int(opening), int(working)
+    return None
+
+
+def announcement_active_now(store: dict) -> bool:
+    if not store.get("announcement_periodic"):
+        activated = store.get("announcement_activated_at")
+        if not activated:
+            return False
+        try:
+            ts = dt.datetime.fromisoformat(activated)
+        except (TypeError, ValueError):
+            return False
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=SERBIA_TZ)
+        return ts.timestamp() > _serbia_now().timestamp() - 47 * 3600
+
+    now = _serbia_now()
+    current = now.hour * 60 + now.minute
+    today = _announcement_slot(store, DAY_KEYS[now.weekday()])
+    if today is not None and today[0] <= current < today[0] + today[1]:
+        return True
+    prev = _announcement_slot(store, DAY_KEYS[(now.weekday() - 1) % 7])
+    return prev is not None and prev[0] + prev[1] > 1440 and current < prev[0] + prev[1] - 1440
+
+
+def seed_announcement_schedule(prefix: str, seed_id: Any, store: dict) -> None:
+    if st.session_state.get(f"{prefix}_ann_sched_seed") == seed_id:
+        return
+    for key, _ in WEEKDAYS:
+        opening = store.get(f"announcement_open_min_{key}")
+        working = store.get(f"announcement_work_min_{key}")
+        enabled = opening is not None and working is not None
+        st.session_state[f"{prefix}_ann_enabled_{key}"] = enabled
+        st.session_state[f"{prefix}_ann_open_{key}"] = minutes_to_time(int(opening or 0))
+        st.session_state[f"{prefix}_ann_dur_{key}"] = int(working or 0)
+    st.session_state[f"{prefix}_ann_sched_seed"] = seed_id
+
+
+def render_announcement_schedule(prefix: str, store: dict) -> dict[str, tuple[int, int] | None]:
+    result: dict[str, tuple[int, int] | None] = {}
+    for key, label in WEEKDAYS:
+        enabled = st.checkbox(label, key=f"{prefix}_ann_enabled_{key}")
+        left, right = st.columns(2)
+        with left:
+            opening_time = st.time_input("Start", key=f"{prefix}_ann_open_{key}", disabled=not enabled)
+        with right:
+            duration = st.number_input(
+                "Minutes", min_value=0, max_value=1440, step=15, key=f"{prefix}_ann_dur_{key}", disabled=not enabled
+            )
+        if not enabled:
+            result[key] = None
+            continue
+        opening = opening_time.hour * 60 + opening_time.minute
+        result[key] = (opening, int(duration))
+    return result
+
+
+def announcement_schedule_errors(store: dict, schedule: dict[str, tuple[int, int] | None]) -> list[str]:
+    errors = []
+    for key, label in WEEKDAYS:
+        entry = schedule.get(key)
+        if entry is None:
+            continue
+        opening, duration = entry
+        store_open = store.get(f"opening_minute_{key}")
+        store_work = store.get(f"working_minutes_{key}")
+        if not store_work or store_work <= 0:
+            errors.append(f"{label}: prodavnica je tog dana zatvorena.")
+        elif duration <= 0:
+            errors.append(f"{label}: trajanje mora biti veće od 0 minuta.")
+        elif store_open is None or opening < store_open or opening + duration > store_open + store_work:
+            errors.append(f"{label}: termin mora biti u okviru radnog vremena prodavnice.")
+    return errors
+
+
+def announcement_schedule_payload(schedule: dict[str, tuple[int, int] | None]) -> dict[str, int | None]:
+    payload: dict[str, int | None] = {}
+    for key, _ in WEEKDAYS:
+        entry = schedule.get(key)
+        if entry is None:
+            payload[f"open_min_{key}"] = None
+            payload[f"work_min_{key}"] = None
+        else:
+            payload[f"open_min_{key}"] = entry[0]
+            payload[f"work_min_{key}"] = entry[1]
+    return payload
+
+
+def _render_store_announcement(backend: Backend, store: dict) -> None:
+    prefix = f"edit_ann_{store['id']}"
+    periodic = bool(store.get("announcement_periodic"))
+    status = "Aktivno" if announcement_active_now(store) else "Neaktivno"
+    st.caption(f"Trenutno: **{status}** · režim: **{'Periodično' if periodic else 'Ručno'}**")
+
+    tab_basic, tab_schedule, tab_manual = st.tabs(["Osnovno", "Raspored", "Aktivacija"])
+
+    with tab_basic:
+        seed(prefix, store["id"], {
+            "description": store.get("announcement_description") or "",
+            "periodic": periodic,
+        })
+        with st.form(f"form_{prefix}"):
+            st.text_area("Tekst obaveštenja", key=f"{prefix}_description")
+            st.checkbox("Periodično (ponavlja se po nedeljnom rasporedu)", key=f"{prefix}_periodic")
+            image, url, remove = image_widgets(prefix, store.get("announcement_image_url"))
+            submitted = st.form_submit_button("Sačuvaj obaveštenje")
+        if submitted:
+            payload = {
+                "description": st.session_state[f"{prefix}_description"],
+                "periodic": bool(st.session_state[f"{prefix}_periodic"]),
+            }
+            apply_image_choice(payload, image, url, remove)
+            try:
+                backend.update_announcement(store["id"], payload, image)
+                flash_message("success", "Obaveštenje je sačuvano.")
+                st.rerun()
+            except BackendError as error:
+                handle_backend_error(error)
+
+    with tab_schedule:
+        if not periodic:
+            st.info("Raspored je dostupan samo u periodičnom režimu. Uključite „Periodično“ u kartici Osnovno.")
+        else:
+            seed_announcement_schedule(prefix, store["id"], store)
+            st.markdown("**Nedeljni raspored obaveštenja**")
+            schedule = render_announcement_schedule(prefix, store)
+            errors = announcement_schedule_errors(store, schedule)
+            for message in errors:
+                st.error(message)
+            if st.button("Sačuvaj raspored", key=f"{prefix}_save_schedule", disabled=bool(errors)):
+                try:
+                    backend.update_announcement(store["id"], announcement_schedule_payload(schedule))
+                    flash_message("success", "Raspored obaveštenja je sačuvan.")
+                    st.rerun()
+                except BackendError as error:
+                    handle_backend_error(error)
+
+    with tab_manual:
+        if periodic:
+            st.info("Ručna aktivacija je dostupna samo u režimu „Ručno“.")
+        else:
+            open_now = _store_open_now(store)
+            st.caption("Prodavnica je trenutno " + ("otvorena." if open_now else "zatvorena — aktivacija nije moguća."))
+            col_on, col_off = st.columns(2)
+            with col_on:
+                activate = st.button("Aktiviraj", key=f"{prefix}_activate", disabled=not open_now)
+            with col_off:
+                deactivate = st.button("Deaktiviraj", key=f"{prefix}_deactivate", disabled=not open_now)
+            if activate or deactivate:
+                try:
+                    backend.update_announcement(store["id"], {"manual_active": bool(activate)})
+                    flash_message("success", "Obaveštenje je aktivirano." if activate else "Obaveštenje je deaktivirano.")
+                    st.rerun()
+                except BackendError as error:
+                    handle_backend_error(error)
+
+
 def _render_store_edit(backend: Backend, store: dict) -> None:
     prefix = f"edit_{store['id']}"
     seed(prefix, store["id"], {
@@ -327,6 +511,10 @@ def _render_store_edit(backend: Backend, store: dict) -> None:
             st.success("Store updated.")
         except BackendError as error:
             handle_backend_error(error)
+
+    st.divider()
+    with st.expander("Obaveštenje"):
+        _render_store_announcement(backend, store)
 
     confirm_key = f"{prefix}_confirm_delete"
     if st.button("Delete store AND its products and workers", key=f"{prefix}_delete"):
@@ -541,7 +729,6 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
         "Price",
         options=PRICE_CASES,
         format_func=lambda k: PRICE_CASE_LABELS[k],
-        default="price",
         key=f"{prefix}_price_case",
     )
     with st.form(f"form_{prefix}"):
@@ -612,7 +799,6 @@ def _render_product_add(backend: Backend, default_store_id: str, store_ids: list
         "Price",
         options=PRICE_CASES,
         format_func=lambda k: PRICE_CASE_LABELS[k],
-        default="price",
         key=f"{prefix}_price_case",
     )
     with st.form("form_new_product"):
