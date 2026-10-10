@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cropImageUrl } from './format'
+import { useBackLayer } from './backStack'
 
 interface AnnouncementStore {
   id: string
@@ -22,6 +23,9 @@ function AnnouncementDetail({
   const [store, setStore] = useState<AnnouncementStore | null>(null)
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [imageFull, setImageFull] = useState(false)
+
+  useBackLayer(imageFull, () => setImageFull(false))
 
   useEffect(() => {
     let cancelled = false
@@ -111,11 +115,17 @@ function AnnouncementDetail({
         {!loading && !error && store && (
           <>
             {store.announcement_image_url ? (
-              <img
-                src={cropImageUrl(store.announcement_image_url, 800, 800)}
-                alt=""
-                className="mt-4 w-full rounded-2xl object-cover"
-              />
+              <button
+                type="button"
+                className="mt-4 block w-full"
+                onClick={() => setImageFull(true)}
+              >
+                <img
+                  src={cropImageUrl(store.announcement_image_url, 800, 800)}
+                  alt=""
+                  className="w-full rounded-2xl object-cover"
+                />
+              </button>
             ) : (
               <div className="mt-4 flex aspect-square w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                 <svg
@@ -168,6 +178,30 @@ function AnnouncementDetail({
           </>
         )}
       </div>
+      {imageFull && store && store.announcement_image_url && (
+        <div
+          className="fixed inset-0 z-[4000] flex items-center justify-center bg-black/90"
+          onClick={() => setImageFull(false)}
+        >
+          <button
+            type="button"
+            aria-label="Zatvori"
+            className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur active:bg-white/20"
+            onClick={(e) => { e.stopPropagation(); setImageFull(false) }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+          <img
+            src={store.announcement_image_url}
+            alt=""
+            className="max-h-full max-w-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }
