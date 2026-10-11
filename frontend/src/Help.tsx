@@ -57,7 +57,7 @@ function Help({ onBack }: HelpProps) {
 
       <Section title="Zašto je prodavnica „ugašena“">
         <p>
-          Ikona prodavnice je siva (blijeda) kada je prodavnica <strong>zatvorena</strong> ili kada
+          Ikona prodavnice je siva (bleda) kada je prodavnica <strong>zatvorena</strong> ili kada
           trenutno <strong>nema nijedan proizvod</strong> za tekuću smenu. Čim dodate proizvod dok je
           prodavnica otvorena, ikona ponovo postaje narandžasta.
         </p>
@@ -118,8 +118,37 @@ function Help({ onBack }: HelpProps) {
 
       <Section title="Obaveštenje prodavnice">
         <p>
-          Opšte obaveštenje (tekst i slika) prikazuje se na karti kao kartica prodavnice. Može da se
-          aktivira ručno dok je prodavnica otvorena ili da se ponavlja po nedeljnom rasporedu.
+          Opšte obaveštenje je poruka cele prodavnice (npr. „Sveže pečivo od
+          7h", akcija ili obaveštenje o neradnom danu). Otvarate ga u meniju podešavanja preko
+          dugmeta <strong>Opšte obaveštenje</strong>.
+        </p>
+        <p>
+          Sastoji se od <strong>teksta</strong> i <strong>slike</strong> (iz galerije ili kamere).
+          Kada je aktivno, prikazuje se na karti kao kartica prodavnice i na vrhu liste proizvoda te
+          prodavnice, iznad običnih proizvoda.
+        </p>
+        <p>Postoje dva režima rada:</p>
+        <Bullets
+          items={[
+            <>
+              <strong>Ručno</strong> — obaveštenje uključujete i isključujete dugmetom{' '}
+              <strong>Aktiviraj</strong> / <strong>Deaktiviraj</strong>. Aktiviranje je moguće{' '}
+              <strong>samo dok je prodavnica otvorena</strong>; deaktivacija je moguća u svakom
+              trenutku. Obaveštenje se <strong>isključuje automatski na kraju smene</strong>, pa ga
+              sledećeg radnog dana morate ponovo aktivirati.
+            </>,
+            <>
+              <strong>Periodično</strong> — obaveštenje se samo prikazuje u zadatim terminima po
+              danima nedelje. Za svaki dan podesite vreme početka i trajanje; termin mora biti{' '}
+              <strong>u okviru radnog vremena prodavnice</strong> i ne može se zakazati na dan kada
+              je prodavnica zatvorena.
+            </>,
+          ]}
+        />
+        <p>
+          Tekst, slika i raspored mogu da se menjaju i dok je prodavnica zatvorena. Kada je
+          obaveštenje aktivno, ono se računa kao sadržaj prodavnice, pa prodavnica sa aktivnim
+          obaveštenjem nije prikazana kao „ugašena“ čak i kada nema proizvoda.
         </p>
       </Section>
 
