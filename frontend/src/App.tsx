@@ -136,6 +136,8 @@ const STORE_TYPES_CLEARANCE = 40
 const PEEK_HEIGHT = 140
 const FIT_WIDTH_RATIO = 0.9
 const FIT_ANIM_DURATION = 0.6
+// On phones the "use my location" circle should fill most of the screen width.
+const LOCATION_WIDTH_RATIO_MOBILE = 0.8
 
 /**
  * Frames `bounds` inside the map's usable area rather than the whole viewport: the side
@@ -172,7 +174,7 @@ function fitBoundsInBand(
   const center = map.unproject(
     [
       px.x + ((panelW + size.x) / 2 - size.x / 2),
-      px.y + ((bandTop + bandBottom) / 2 - size.y / 2),
+      px.y + (size.y / 2 - (bandTop + bandBottom) / 2),
     ],
     fit.zoom,
   )
@@ -202,7 +204,8 @@ function MapController({
         [request.lat - request.radiusKm / 111, request.lng - dLng],
         [request.lat + request.radiusKm / 111, request.lng + dLng],
       ]
-      fitBoundsInBand(map, bounds, 0.2)
+      const widthRatio = map.getSize().x < 768 ? LOCATION_WIDTH_RATIO_MOBILE : 0.2
+      fitBoundsInBand(map, bounds, widthRatio)
     } else if (request.type === 'focus') {
       const size = map.getSize()
       const offsetX = size.x >= 768 ? SIDE_PANEL_WIDTH / 2 : 0
