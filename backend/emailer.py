@@ -15,6 +15,7 @@ SMTP_PORT = 587
 SENDER_EMAIL = os.getenv("AUTO_REPLY_EMAIL", "")
 SENDER_APP_PASSWORD = os.getenv("AUTO_REPLY_EMAIL_APP_PASSWORD", "")
 SENDER_EMAIL_ALIAS = os.getenv("AUTO_REPLY_EMAIL_ALIAS", "")
+CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "")
 
 
 def _send(subject: str, body: str, to_email: str) -> None:
@@ -24,6 +25,8 @@ def _send(subject: str, body: str, to_email: str) -> None:
     message["Subject"] = subject
     message["From"] = f"NeBacaj <{SENDER_EMAIL_ALIAS}>"
     message["To"] = to_email
+    if CONTACT_EMAIL:
+        message["Reply-To"] = CONTACT_EMAIL
     message.set_content(body)
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
         server.starttls()
