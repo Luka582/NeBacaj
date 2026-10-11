@@ -61,6 +61,8 @@ Create a `.env` file in the project root:
 | `IMAGEKIT_PRIVATE_KEY` | No | ImageKit private key. Image **uploads will fail** without it. |
 | `CONTACT_EMAIL` | No (frontend) | Public address shown as **Pomoć i kontakt** in the in-app settings, both as the `mailto:` target and the visible label. Inlined into the bundle at build time, so changing it requires a frontend rebuild. |
 | `ADMIN_BACKEND_URL` | No | Default backend URL the admin panel tries on login. Defaults to `http://localhost:8000`; can also be typed in at the panel's login screen. |
+| `DOCS_ENABLED` | No | Set to `0` to disable the FastAPI `/docs`, `/redoc` and `/openapi.json` endpoints. Defaults to `1`; `run.sh prod` sets it to `0`. |
+| `CLOUDFLARE_TUNNEL_TOKEN` | No (prod) | Cloudflare tunnel token used by `run.sh prod`. Read from the shell environment first, then from `.env`; if empty you are prompted. |
 | `CLEANUP_ENABLED` | No | Set to `0` to disable the nightly product cleanup job. Defaults to `1`. |
 | `CLEANUP_OLD_HOURS` | No | Age in hours after which a product is soft-deleted by the nightly job, independently of its expiration date. Defaults to `72`. |
 
@@ -77,6 +79,29 @@ restarting the backend has no effect on them, only a frontend rebuild does. They
 not secret — anything shipped this way is readable by anyone who loads the site.
 
 ## Running
+
+### One-command setup (`run.sh`)
+
+`./run.sh` installs missing dependencies, sets up nginx as a single reverse
+proxy (`/` → frontend, `/api/` → backend) and starts the app. Run it without
+arguments for a menu, or pass a mode directly:
+
+```bash
+./run.sh            # interactive menu
+./run.sh dev        # development: vite + uvicorn --reload behind nginx on :80
+./run.sh prod       # production: built frontend + systemd backend + Cloudflare tunnel
+./run.sh stop       # stop production (backend, cloudflared, nginx site)
+```
+
+Development serves `http://localhost/` (and the LAN IP) with hot reload; stop it
+with Ctrl+C. Production builds the frontend, runs the backend as the
+`nebacaj-backend` systemd service (the uvicorn worker count is derived from the
+CPU core count, capped at 8; override with `UVICORN_WORKERS`) and exposes it
+through a Cloudflare tunnel (token from `CLOUDFLARE_TUNNEL_TOKEN`, otherwise
+prompted). In the Cloudflare Zero Trust dashboard, point each Public Hostname
+(e.g. `nebacaj.com` and `www.nebacaj.com`) at `http://localhost:80`.
+
+### Manual start
 
 Start the backend (port 8000) in one terminal:
 

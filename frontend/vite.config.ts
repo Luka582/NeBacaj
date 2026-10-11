@@ -20,6 +20,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
+        // The Swagger UI served at /api/docs fetches this absolute path, which
+        // bypasses the /api prefix, so proxy it separately in development.
+        '/openapi.json': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
       },
     },
   }

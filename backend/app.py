@@ -109,7 +109,14 @@ async def lifespan(_: FastAPI):
             _scheduler = None
 
 
-app = FastAPI(lifespan=lifespan)
+_docs_enabled = os.getenv("DOCS_ENABLED", "1").lower() not in {"0", "false", "no"}
+
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -297,6 +304,9 @@ def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     a = sin(dlat / 2) ** 2 + cos(p1) * cos(p2) * sin(dlng / 2) ** 2
     return 2 * R * asin(sqrt(a))
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
 @app.get("/store/{store_id}", response_model=StoreResponse)
 async def get_store(store_id: str, db: AsyncSession = Depends(get_session)) -> StoreResponse:
