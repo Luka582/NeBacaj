@@ -50,8 +50,10 @@ async def cleanup_old_products(
     Two independent rules soft-delete a product:
 
     * **Age** — ``creation_date`` older than ``cutoff`` (``CLEANUP_OLD_HOURS``, default 72h).
-    * **Expiration** — ``expiration_date`` at or before ``now`` (defaults to the current
-      Serbia time). Products with no ``expiration_date`` never expire this way.
+    * **Expiration** — the calendar day of ``expiration_date`` is before today (defaults to the
+      current Serbia time). Products remain visible through the end of their expiration day
+      and are removed by the first nightly run after it. Products with no ``expiration_date``
+      never expire this way.
 
     Rows are kept (is_active=False) for history; images are deleted so ImageKit does not
     accumulate orphaned files. Semantics mirror ``_clear_image``: the image_url is cleared
@@ -60,13 +62,14 @@ async def cleanup_old_products(
     """
     cutoff = cutoff or cleanup_cutoff()
     now = now or now_naive()
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     rows = (
         await db.execute(
             select(Product).where(
                 Product.is_active.is_(True),
                 or_(
                     Product.creation_date < cutoff,
-                    Product.expiration_date <= now,
+                    Product.expiration_date < start_of_today,
                 ),
             )
         )

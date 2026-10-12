@@ -695,7 +695,7 @@ def _validate_expiration_or_422(expiration: datetime | None, creation: datetime)
         return
     exp = _normalize_serbia_wall(expiration)
     cr = _normalize_serbia_wall(creation)
-    if exp < cr:
+    if exp.date() < cr.date():
         raise HTTPException(status_code=422, detail="expiration_date must be greater than or equal to creation_date")
 
 
