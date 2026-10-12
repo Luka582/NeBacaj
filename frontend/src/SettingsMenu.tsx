@@ -172,7 +172,11 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement }: S
         setError(typeof data.detail === 'string' ? translateDetail(data.detail) : 'Promena lozinke nije uspela.')
         return
       }
-      const next = { ...session, must_change_password: false }
+      const next = {
+        ...session,
+        must_change_password: false,
+        token: typeof data.access_token === 'string' ? data.access_token : session.token,
+      }
       saveSession(next)
       setChanging(false)
       setOldPassword('')

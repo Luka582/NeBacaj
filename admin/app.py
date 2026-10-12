@@ -197,10 +197,13 @@ def render_change_password(backend: Backend) -> None:
             st.error("New password is too short (min 8 characters).")
         else:
             try:
-                backend.change_password(old, new)
+                data = backend.change_password(old, new)
             except BackendError as error:
                 st.error(error.detail)
                 return
+            if isinstance(data, dict) and isinstance(data.get("access_token"), str):
+                backend.token = data["access_token"]
+                st.session_state.token = data["access_token"]
             st.session_state.must_change_password = False
             flash_message("success", "Password changed.")
             st.rerun()

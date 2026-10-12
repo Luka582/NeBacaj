@@ -15,7 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .db import User, UserRole, get_session
+from .db import SERBIA_TZ, User, UserRole, get_session
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -41,6 +41,7 @@ def create_access_token(user: User) -> str:
     payload = {
         "sub": user.id,
         "role": user.role.value,
+        "iat": int(datetime.now(timezone.utc).timestamp()),
         "exp": datetime.now(timezone.utc) + timedelta(minutes=TOKEN_EXPIRE_MINUTES),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -88,6 +89,15 @@ async def _authenticate(
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="Invalid or disabled account")
+    changed_at = user.password_changed_at
+    if changed_at is not None:
+        issued_at = payload.get("iat")
+        if not isinstance(issued_at, (int, float)):
+            issued_at = 0  # legacy tokens without iat die on the first password change
+        if changed_at.tzinfo is None:
+            changed_at = changed_at.replace(tzinfo=SERBIA_TZ)
+        if issued_at < int(changed_at.timestamp()):
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
     return user
 
 
