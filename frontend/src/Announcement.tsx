@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadSession, clearSession, isWorker } from './auth'
 import type { Session } from './auth'
-import { cropImageUrl, formatMinutes, getSerbiaWeekday, getSerbiaMinutes } from './format'
+import { belgradeDateKey, cropImageUrl, formatMinutes, getSerbiaWeekday, getSerbiaMinutes } from './format'
 import CameraCapture from './CameraCapture'
 import { dismissKeyboard } from './tapHandlers'
 import { useViewportHeight } from './useViewportHeight'
@@ -75,9 +75,45 @@ function storeOpenNow(s: ApiStore): boolean {
   return pWork > 0 && pOpen + pWork > 1440 && cur < pOpen + pWork - 1440
 }
 
+// Serbia wall-clock components of an ISO string as an epoch-ms-like number.
+// The backend sends naive wall time; the immediate toggle response is timezone-aware
+// but always Europe/Belgrade, so the leading Y-M-D H:M(:S) components are wall time either way.
+function wallMs(iso: string | null): number | null {
+  if (!iso) return null
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/)
+  if (!m) return null
+  return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0))
+}
+
+function serbiaDayMs(offsetDays: number): number {
+  const [y, mo, d] = belgradeDateKey(offsetDays).split('-').map(Number)
+  return Date.UTC(y, mo - 1, d)
+}
+
 function announcementActiveNow(s: ApiStore): boolean {
   if (!s.announcement_periodic) {
-    return !!s.announcement_activated_at && Date.parse(s.announcement_activated_at) > Date.now() - 47 * 3600 * 1000
+    // Mirrors backend `_announcement_active`: a manual announcement is visible only
+    // while the activation timestamp falls inside the store's currently active shift.
+    const act = wallMs(s.announcement_activated_at)
+    if (act == null) return false
+    const js = getSerbiaWeekday()
+    const cur = getSerbiaMinutes()
+    const today = DAYS.find((d) => d.js === js)
+    const prev = DAYS.find((d) => d.js === (js + 6) % 7)
+    if (!today || !prev) return false
+    const tOpen = num(s[`opening_minute_${today.key}`]) ?? 0
+    const tWork = num(s[`working_minutes_${today.key}`]) ?? 0
+    if (tWork > 0 && cur >= tOpen && cur < tOpen + tWork) {
+      const start = serbiaDayMs(0) + tOpen * 60000
+      return act >= start && act < start + tWork * 60000
+    }
+    const pOpen = num(s[`opening_minute_${prev.key}`]) ?? 0
+    const pWork = num(s[`working_minutes_${prev.key}`]) ?? 0
+    if (pOpen + pWork > 1440 && cur < pOpen + pWork - 1440) {
+      const start = serbiaDayMs(-1) + pOpen * 60000
+      return act >= start && act < start + pWork * 60000
+    }
+    return false
   }
   const js = getSerbiaWeekday()
   const cur = getSerbiaMinutes()

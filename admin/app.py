@@ -306,6 +306,8 @@ def _announcement_slot(store: dict, key: str) -> tuple[int, int] | None:
 
 def announcement_active_now(store: dict) -> bool:
     if not store.get("announcement_periodic"):
+        # Mirrors backend `_announcement_active`: a manual announcement is visible only
+        # while the activation timestamp falls inside the store's currently active shift.
         activated = store.get("announcement_activated_at")
         if not activated:
             return False
@@ -313,9 +315,24 @@ def announcement_active_now(store: dict) -> bool:
             ts = dt.datetime.fromisoformat(activated)
         except (TypeError, ValueError):
             return False
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=SERBIA_TZ)
-        return ts.timestamp() > _serbia_now().timestamp() - 47 * 3600
+        if ts.tzinfo is not None:
+            ts = ts.astimezone(SERBIA_TZ).replace(tzinfo=None)
+        now = _serbia_now()
+        cur = now.hour * 60 + now.minute
+        today, prev = DAY_KEYS[now.weekday()], DAY_KEYS[(now.weekday() - 1) % 7]
+
+        t_open = store.get(f"opening_minute_{today}") or 0
+        t_work = store.get(f"working_minutes_{today}") or 0
+        if t_work > 0 and t_open <= cur < t_open + t_work:
+            start = dt.datetime.combine(now.date(), dt.time()) + dt.timedelta(minutes=t_open)
+            return start <= ts < start + dt.timedelta(minutes=t_work)
+
+        p_open = store.get(f"opening_minute_{prev}") or 0
+        p_work = store.get(f"working_minutes_{prev}") or 0
+        if p_open + p_work > 1440 and cur < p_open + p_work - 1440:
+            start = dt.datetime.combine(now.date() - dt.timedelta(days=1), dt.time()) + dt.timedelta(minutes=p_open)
+            return start <= ts < start + dt.timedelta(minutes=p_work)
+        return False
 
     now = _serbia_now()
     current = now.hour * 60 + now.minute
