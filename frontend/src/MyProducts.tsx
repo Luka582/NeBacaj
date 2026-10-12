@@ -187,7 +187,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
     }
     if (mode === 'create') payload.store_id = storeId
     if (amt != null) payload.amount = amt
-    if (description.trim() !== '') payload.description = description.trim()
+    payload.description = description.trim() === '' ? null : description.trim()
     if (mode === 'edit' || mode === 'reactivate') {
       payload.is_active = true
       if (removeImage) payload.image_url = null

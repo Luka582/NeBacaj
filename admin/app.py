@@ -762,8 +762,7 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
             "amount": int(amount) or None,
             "is_active": bool(is_active),
         }
-        if description.strip():
-            payload["description"] = description
+        payload["description"] = description.strip() or None
         try:
             expiration_value = parse_expiration(expiration)
         except ValueError:
@@ -836,8 +835,7 @@ def _render_product_add(backend: Backend, default_store_id: str, store_ids: list
             "new_price": new_price_v,
             "amount": int(amount) or None,
         }
-        if description.strip():
-            payload["description"] = description
+        payload["description"] = description.strip() or None
         try:
             expiration_value = parse_expiration(expiration)
         except ValueError:
@@ -902,21 +900,37 @@ def page_workers(backend: Backend) -> None:
         prefix = f"edit_worker_{worker['id']}"
         store_ids = [s["id"] for s in stores]
         store_labels = {s["id"]: f"{s['name']} — {s['town']}" for s in stores}
+        PICK_STORE = "__pick_store__"
+        worker_store_id = worker.get("store_id")
+        missing_store = worker_store_id is not None and worker_store_id not in store_ids
+        if missing_store:
+            st.warning(
+                "Radnik nije povezan ni sa jednom aktivnom prodavnicom (prodavnica je obrisana ili "
+                "neaktivna). Izaberite prodavnicu pre čuvanja promena."
+            )
+        store_options = ([PICK_STORE] if missing_store else []) + store_ids
         seed(prefix, worker["id"], {
             "email": worker["email"],
             "name": worker.get("name") or "",
-            "store_id": worker.get("store_id") or (store_ids[0] if store_ids else None),
+            "store_id": worker_store_id or (store_ids[0] if store_ids else None),
             "is_active": worker["is_active"],
         })
         with st.form(f"form_{prefix}"):
             email = st.text_input("Email", key=f"{prefix}_email")
             name = st.text_input("Name", key=f"{prefix}_name")
-            store_id = st.selectbox("Store", store_ids, format_func=lambda x: store_labels.get(x, x), key=f"{prefix}_store_id")
+            store_id = st.selectbox(
+                "Store",
+                store_options,
+                format_func=lambda x: store_labels.get(x, "— izaberite prodavnicu —" if x == PICK_STORE else x),
+                key=f"{prefix}_store_id",
+            )
             is_active = st.checkbox("Active", key=f"{prefix}_is_active")
             submitted = st.form_submit_button("Save changes")
         if submitted:
             if "@" not in email:
                 st.error("Invalid email.")
+            elif store_id == PICK_STORE:
+                st.error("Izaberite prodavnicu pre čuvanja.")
             else:
                 try:
                     backend.update_worker(worker["id"], {
