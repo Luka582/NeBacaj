@@ -695,7 +695,7 @@ def _validate_expiration_or_422(expiration: datetime | None, creation: datetime)
         return
     exp = _normalize_serbia_wall(expiration)
     cr = _normalize_serbia_wall(creation)
-    if exp < cr:
+    if exp.date() < cr.date():
         raise HTTPException(status_code=422, detail="expiration_date must be greater than or equal to creation_date")
 
 
@@ -840,19 +840,27 @@ async def get_me(user: User = Depends(get_current_user_allowing_password_change)
     return user
 
 
-@app.post("/auth/change-password")
+@app.post("/auth/change-password", response_model=TokenResponse)
 async def change_password(
     body: ChangePasswordRequest,
     user: User = Depends(get_current_user_allowing_password_change),
     db: AsyncSession = Depends(get_session),
-):
-    """POST /auth/change-password — change the current user's password."""
+) -> TokenResponse:
+    """POST /auth/change-password — change the current user's password.
+
+    Returns a fresh access token; existing tokens are invalidated.
+    """
     if not verify_password(body.old_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     user.password_hash = hash_password(body.new_password)
     user.must_change_password = False
+    user.password_changed_at = now_serbia()
     await db.commit()
-    return {"detail": "Password changed"}
+    return TokenResponse(
+        access_token=create_access_token(user),
+        role=user.role,
+        must_change_password=False,
+    )
 
 
 @app.post("/auth/request-recovery-code")
@@ -914,6 +922,7 @@ async def recover_account(
     await db.delete(recovery)
     user.password_hash = hash_password(body.new_password)
     user.must_change_password = False
+    user.password_changed_at = now_serbia()
     await db.commit()
     return TokenResponse(
         access_token=create_access_token(user),
@@ -1033,6 +1042,11 @@ async def delete_store(store_id: str, db: AsyncSession = Depends(get_session)) -
     store = await _get_store_or_404(store_id, db)
     store.is_active = False
     await _clear_image(store)
+    await _clear_image(
+        store,
+        url_attr="announcement_image_url",
+        file_attr="announcement_image_file_id",
+    )
 
     products = (
         await db.execute(
@@ -1137,6 +1151,7 @@ async def reset_worker_password(worker_id: str, db: AsyncSession = Depends(get_s
 
     user.password_hash = hash_password(temp_password)
     user.must_change_password = True
+    user.password_changed_at = now_serbia()
     await db.commit()
     return UserResponse.model_validate(user)
 

@@ -144,6 +144,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class RecoveryCode(Base):
@@ -180,6 +181,10 @@ async def init_db() -> None:
                 "SELECT id, store_id, amount, old_price, new_price, name, description, image_url, image_file_id, is_active, expiration_date, creation_date FROM products_legacy"
             )
             await conn.exec_driver_sql("DROP TABLE products_legacy")
+
+        user_columns = (await conn.exec_driver_sql("PRAGMA table_info(users)")).fetchall()
+        if not any(column[1] == "password_changed_at" for column in user_columns):
+            await conn.exec_driver_sql("ALTER TABLE users ADD COLUMN password_changed_at DATETIME")
 
         for stmt in (
             "CREATE INDEX IF NOT EXISTS ix_products_store_id ON products (store_id)",

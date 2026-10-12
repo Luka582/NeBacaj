@@ -90,8 +90,8 @@ class Backend:
     def me(self) -> dict:
         return self._request("GET", "/auth/me")
 
-    def change_password(self, old_password: str, new_password: str) -> None:
-        self._request(
+    def change_password(self, old_password: str, new_password: str) -> dict:
+        return self._request(
             "POST",
             "/auth/change-password",
             json={"old_password": old_password, "new_password": new_password},

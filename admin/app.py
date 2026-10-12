@@ -197,10 +197,13 @@ def render_change_password(backend: Backend) -> None:
             st.error("New password is too short (min 8 characters).")
         else:
             try:
-                backend.change_password(old, new)
+                data = backend.change_password(old, new)
             except BackendError as error:
                 st.error(error.detail)
                 return
+            if isinstance(data, dict) and isinstance(data.get("access_token"), str):
+                backend.token = data["access_token"]
+                st.session_state.token = data["access_token"]
             st.session_state.must_change_password = False
             flash_message("success", "Password changed.")
             st.rerun()
@@ -306,6 +309,8 @@ def _announcement_slot(store: dict, key: str) -> tuple[int, int] | None:
 
 def announcement_active_now(store: dict) -> bool:
     if not store.get("announcement_periodic"):
+        # Mirrors backend `_announcement_active`: a manual announcement is visible only
+        # while the activation timestamp falls inside the store's currently active shift.
         activated = store.get("announcement_activated_at")
         if not activated:
             return False
@@ -313,9 +318,24 @@ def announcement_active_now(store: dict) -> bool:
             ts = dt.datetime.fromisoformat(activated)
         except (TypeError, ValueError):
             return False
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=SERBIA_TZ)
-        return ts.timestamp() > _serbia_now().timestamp() - 47 * 3600
+        if ts.tzinfo is not None:
+            ts = ts.astimezone(SERBIA_TZ).replace(tzinfo=None)
+        now = _serbia_now()
+        cur = now.hour * 60 + now.minute
+        today, prev = DAY_KEYS[now.weekday()], DAY_KEYS[(now.weekday() - 1) % 7]
+
+        t_open = store.get(f"opening_minute_{today}") or 0
+        t_work = store.get(f"working_minutes_{today}") or 0
+        if t_work > 0 and t_open <= cur < t_open + t_work:
+            start = dt.datetime.combine(now.date(), dt.time()) + dt.timedelta(minutes=t_open)
+            return start <= ts < start + dt.timedelta(minutes=t_work)
+
+        p_open = store.get(f"opening_minute_{prev}") or 0
+        p_work = store.get(f"working_minutes_{prev}") or 0
+        if p_open + p_work > 1440 and cur < p_open + p_work - 1440:
+            start = dt.datetime.combine(now.date() - dt.timedelta(days=1), dt.time()) + dt.timedelta(minutes=p_open)
+            return start <= ts < start + dt.timedelta(minutes=p_work)
+        return False
 
     now = _serbia_now()
     current = now.hour * 60 + now.minute
@@ -762,8 +782,7 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
             "amount": int(amount) or None,
             "is_active": bool(is_active),
         }
-        if description.strip():
-            payload["description"] = description
+        payload["description"] = description.strip() or None
         try:
             expiration_value = parse_expiration(expiration)
         except ValueError:
@@ -836,8 +855,7 @@ def _render_product_add(backend: Backend, default_store_id: str, store_ids: list
             "new_price": new_price_v,
             "amount": int(amount) or None,
         }
-        if description.strip():
-            payload["description"] = description
+        payload["description"] = description.strip() or None
         try:
             expiration_value = parse_expiration(expiration)
         except ValueError:
@@ -902,21 +920,37 @@ def page_workers(backend: Backend) -> None:
         prefix = f"edit_worker_{worker['id']}"
         store_ids = [s["id"] for s in stores]
         store_labels = {s["id"]: f"{s['name']} — {s['town']}" for s in stores}
+        PICK_STORE = "__pick_store__"
+        worker_store_id = worker.get("store_id")
+        missing_store = worker_store_id is not None and worker_store_id not in store_ids
+        if missing_store:
+            st.warning(
+                "Radnik nije povezan ni sa jednom aktivnom prodavnicom (prodavnica je obrisana ili "
+                "neaktivna). Izaberite prodavnicu pre čuvanja promena."
+            )
+        store_options = ([PICK_STORE] if missing_store else []) + store_ids
         seed(prefix, worker["id"], {
             "email": worker["email"],
             "name": worker.get("name") or "",
-            "store_id": worker.get("store_id") or (store_ids[0] if store_ids else None),
+            "store_id": worker_store_id or (store_ids[0] if store_ids else None),
             "is_active": worker["is_active"],
         })
         with st.form(f"form_{prefix}"):
             email = st.text_input("Email", key=f"{prefix}_email")
             name = st.text_input("Name", key=f"{prefix}_name")
-            store_id = st.selectbox("Store", store_ids, format_func=lambda x: store_labels.get(x, x), key=f"{prefix}_store_id")
+            store_id = st.selectbox(
+                "Store",
+                store_options,
+                format_func=lambda x: store_labels.get(x, "— izaberite prodavnicu —" if x == PICK_STORE else x),
+                key=f"{prefix}_store_id",
+            )
             is_active = st.checkbox("Active", key=f"{prefix}_is_active")
             submitted = st.form_submit_button("Save changes")
         if submitted:
             if "@" not in email:
                 st.error("Invalid email.")
+            elif store_id == PICK_STORE:
+                st.error("Izaberite prodavnicu pre čuvanja.")
             else:
                 try:
                     backend.update_worker(worker["id"], {

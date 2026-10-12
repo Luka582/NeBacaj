@@ -235,7 +235,7 @@ class ProductResponse(BaseModel):
     def _check_product_constraints(self) -> "ProductResponse":
         if self.old_price is not None and self.new_price is not None and self.old_price < self.new_price:
             raise ValueError("old_price must be greater than or equal to new_price")
-        if self.expiration_date is not None and self.expiration_date < self.creation_date:
+        if self.expiration_date is not None and self.expiration_date.date() < self.creation_date.date():
             raise ValueError("expiration_date must be greater than or equal to creation_date")
         return self
 
