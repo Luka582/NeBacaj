@@ -288,11 +288,16 @@ wait_port() {
 }
 
 compute_workers() {
-  if [ -n "${UVICORN_WORKERS:-}" ]; then
-    echo "$UVICORN_WORKERS"
+  local override cpus workers
+  override="${UVICORN_WORKERS:-}"
+  [ -n "$override" ] || override="$(env_value UVICORN_WORKERS)"
+  if [[ "$override" =~ ^[1-9][0-9]*$ ]]; then
+    echo "$override"
     return
   fi
-  local cpus workers
+  if [ -n "$override" ]; then
+    warn "UVICORN_WORKERS='$override' is not a positive integer; auto-detecting."
+  fi
   cpus="$(nproc 2>/dev/null || echo 1)"
   if [ "$cpus" -gt 4 ]; then
     workers=4

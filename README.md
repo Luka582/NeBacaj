@@ -62,6 +62,7 @@ Create a `.env` file in the project root:
 | `IMAGEKIT_PRIVATE_KEY` | No | ImageKit private key. Image **uploads will fail** without it. |
 | `CONTACT_EMAIL` | No (frontend) | Public address shown as **Pomoć i kontakt** in the in-app settings, both as the `mailto:` target and the visible label. Inlined into the bundle at build time, so changing it requires a frontend rebuild. |
 | `ADMIN_BACKEND_URL` | No | Default backend URL the admin panel tries on login. Defaults to `http://localhost:8000`; can also be typed in at the panel's login screen. |
+| `UVICORN_WORKERS` | No | Number of uvicorn worker processes for `run.sh prod`. Read from the shell environment first, then from `.env`; if unset, derived from the CPU core count (capped at 4). Keep it at 1–2 while using SQLite. |
 | `DOCS_ENABLED` | No | Set to `0` to disable the FastAPI `/docs`, `/redoc` and `/openapi.json` endpoints. Defaults to `1`; `run.sh prod` sets it to `0`. |
 | `CLOUDFLARE_TUNNEL_TOKEN` | No (prod) | Cloudflare tunnel token used by `run.sh prod`. Read from the shell environment first, then from `.env`; if empty you are prompted. |
 | `CLEANUP_ENABLED` | No | Set to `0` to disable the nightly product cleanup job. Defaults to `1`. |
@@ -96,11 +97,12 @@ arguments for a menu, or pass a mode directly:
 
 Development serves `http://localhost/` (and the LAN IP) with hot reload; stop it
 with Ctrl+C. Production builds the frontend, runs the backend as the
-`nebacaj-backend` systemd service (the uvicorn worker count is derived from the
-CPU core count, capped at 8; override with `UVICORN_WORKERS`) and exposes it
-through a Cloudflare tunnel (token from `CLOUDFLARE_TUNNEL_TOKEN`, otherwise
-prompted). In the Cloudflare Zero Trust dashboard, point each Public Hostname
-(e.g. `nebacaj.com` and `www.nebacaj.com`) at `http://localhost:80`.
+`nebacaj-backend` systemd service (the uvicorn worker count comes from
+`UVICORN_WORKERS` in `.env` or the shell, falling back to the CPU core count
+capped at 4) and exposes it through a Cloudflare tunnel (token from
+`CLOUDFLARE_TUNNEL_TOKEN`, otherwise prompted). In the Cloudflare Zero Trust
+dashboard, point each Public Hostname (e.g. `nebacaj.com` and `www.nebacaj.com`)
+at `http://localhost:80`.
 
 ### Manual start
 
@@ -164,6 +166,36 @@ deactivates every product and worker account for that store, and permanently
 deletes all of the store's uploaded images — the admin panel asks for
 confirmation and shows the affected counts before you delete.
 
+## Production server requirements
+
+`run.sh prod` targets a Linux host with **systemd** and **nginx**, and installs
+missing packages with **apt** (Debian/Ubuntu family). It must run as root or via
+`sudo`. Node.js 18+ and `uv`/Python 3.12 are needed on the same machine for the
+build and the backend.
+
+The app itself is light: nginx serves the built static frontend, images are
+offloaded to ImageKit, TLS terminates at Cloudflare, and the SQLite database is
+small (hundreds of KB for a city). The realistic sizing is therefore driven by
+build headroom and concurrency, not storage:
+
+| Tier | Specs | Notes |
+| --- | --- | --- |
+| Minimum | 1 vCPU, 1 GB RAM, 20 GB SSD | Fine with `UVICORN_WORKERS=1`. The weakest viable box. |
+| Recommended | 2 vCPU, 2 GB RAM, 40 GB SSD | Headroom for nginx, cloudflared, builds, and 2 uvicorn workers. |
+| Growth | 2–4 vCPU, 4 GB RAM, 60–80 GB SSD | Only needed after moving off SQLite to Postgres. |
+
+Guidance:
+
+- **Keep `UVICORN_WORKERS` at 1–2 while on SQLite.** SQLite allows only one writer
+  at a time, so extra workers add lock contention rather than throughput (see the
+  WAL note under `db.py` below). Don't buy cores to run more workers.
+- **Disk** holds the database, its `-wal`/`-shm` files, the built frontend under
+  `/var/www/nebacaj`, and the Python/Node dependencies. 20 GB is plenty early on;
+  leave room for DB backups.
+- **Bandwidth** is modest — HTML/JS/CSS on first load, then small JSON API
+  responses. Images are served directly from ImageKit, not this server.
+- **Outbound network** is required for ImageKit uploads and Gmail SMTP.
+
 ## Accounts, recovery
 
 - Passwords are stored hashed; auth uses short-lived bearer tokens
@@ -181,6 +213,9 @@ confirmation and shows the affected counts before you delete.
 - `main.py` — entrypoint (`python -m backend.main`, port 8000).
 - `app.py` — FastAPI app: all routes, auth, and business logic.
 - `db.py` — SQLite helpers/schema, `nebacaj.db` lives in the project root.
+  Connections enable WAL journaling plus a 5 s busy timeout, so reads and the
+  single writer do not block each other; keep the uvicorn worker count low
+  (1–2) since SQLite still allows only one writer at a time.
 - `schemas.py` — request/response models; `security.py` — password hashing, JWT,
   recovery codes; `images.py` — ImageKit uploads; `emailer.py` — SMTP.
 - `cleanup.py` — nightly soft-delete of products past their expiration date or older
