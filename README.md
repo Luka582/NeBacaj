@@ -56,6 +56,7 @@ Create a `.env` file in the project root:
 | `ADMIN_EMAIL` | Yes | Email of the initial admin account. Used by `backend.seed_admin`, which then prompts you for the admin password (never stored in `.env`). |
 | `AUTO_REPLY_EMAIL` | No | Gmail address used as the SMTP sender for temporary passwords and recovery codes. If empty, no emails are sent. |
 | `AUTO_REPLY_EMAIL_APP_PASSWORD` | No | Gmail **app password** for the sender address (not your regular password). |
+| `AUTO_REPLY_EMAIL_ALIAS` | No | Sender name/address alias shown in emails (e.g. `NeBacaj <noreply@nebacaj.com>`). Defaults to empty. |
 | `IMAGEKIT_URL_ENDPOINT` | No | ImageKit URL endpoint (e.g. `https://ik.imagekit.io/your_imagekit_id`). Needed for store/product images. |
 | `IMAGEKIT_PUBLIC_KEY` | No | ImageKit public key. Not read by the current code — uploads go through the backend with `IMAGEKIT_PRIVATE_KEY` — but kept for a future direct browser-to-ImageKit upload flow. |
 | `IMAGEKIT_PRIVATE_KEY` | No | ImageKit private key. Image **uploads will fail** without it. |
@@ -202,9 +203,8 @@ confirmation and shows the affected counts before you delete.
   `App` (via `expanded`/`onExpandedChange`).
 - `StoreDetail.tsx` — full-screen store page (info, working hours, product list);
   can open a product detail on top of itself.
-- `ProductDetail.tsx` — full-screen product page. "Pogledaj radnju" calls the
-  `onViewStore` prop, which in `App` collapses the product sheet and opens the
-  store's map popup instead of the store page.
+- `ProductDetail.tsx` — full-screen product page. Tapping the product image opens a full-screen view of the original image (with phone back support). "Pogledaj radnju" calls the `onViewStore` prop, which in `App` collapses the product sheet and opens the store's map popup instead of the store page.
+  - `AnnouncementDetail.tsx` — full-screen announcement page. Tapping the image opens a full-screen view of the original image (with phone back support).
 - `SettingsMenu.tsx` — slide-in settings (opens `MyProducts`).
 - `MyProducts.tsx` — worker flow: login, "my products" list, `ProductForm`
   (add/edit; embeds the in-app camera). ~900 lines.
@@ -248,6 +248,10 @@ mobile (<768px) and a fixed right-side panel on desktop (≥768px,
 
 `LOCATION_RADIUS_KM` is the radius (km) fitted when the **location button**
 succeeds (fitted to 20% of the available width).
+
+## General Announcements
+
+Each store can have one general announcement (image + description). It's shown as a synthetic product row in search results while active and can be managed by workers in the app. See `backend/db.py`, `backend/app.py`, and `frontend/src/Announcement*` for details.
 
 ## Dummy Data
 
