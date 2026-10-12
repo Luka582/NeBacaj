@@ -1033,6 +1033,11 @@ async def delete_store(store_id: str, db: AsyncSession = Depends(get_session)) -
     store = await _get_store_or_404(store_id, db)
     store.is_active = False
     await _clear_image(store)
+    await _clear_image(
+        store,
+        url_attr="announcement_image_url",
+        file_attr="announcement_image_file_id",
+    )
 
     products = (
         await db.execute(
