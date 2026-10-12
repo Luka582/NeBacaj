@@ -39,6 +39,7 @@ interface ApiMin {
   new_price: number | null
   image_url?: string | null
   creation_date: string
+  is_announcement?: boolean
 }
 
 interface ApiFull extends ApiMin {
@@ -639,7 +640,7 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
     ])
     if (!t.ok || !a.ok || !d.ok) throw new Error('Ne mogu da učitam proizvode.')
     const [tj, aj, dj] = (await Promise.all([t.json(), a.json(), d.json()])) as [ApiMin[], ApiMin[], ApiMin[]]
-    const todayRows = tj.map((x) => toRow(x, true))
+    const todayRows = tj.filter((x) => !x.is_announcement).map((x) => toRow(x, true))
     const todayIds = new Set(todayRows.map((p) => p.id))
     const cutoff = belgradeDateKey(-2)
     const oldRows = [...aj.map((x) => toRow(x, true)), ...dj.map((x) => toRow(x, false))].filter(
