@@ -294,8 +294,11 @@ compute_workers() {
   fi
   local cpus workers
   cpus="$(nproc 2>/dev/null || echo 1)"
-  workers=$(( 2 * cpus + 1 ))
-  [ "$workers" -gt 8 ] && workers=8
+  if [ "$cpus" -gt 4 ]; then
+    workers=4
+  else
+    workers="$cpus"
+  fi
   [ "$workers" -lt 1 ] && workers=1
   echo "$workers"
 }
