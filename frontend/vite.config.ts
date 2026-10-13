@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
       // build process but never referenced here, so they cannot reach the browser.
       __CARTO_API_KEY__: JSON.stringify(env.CARTO_API_KEY || ''),
       __CONTACT_EMAIL__: JSON.stringify(env.CONTACT_EMAIL || ''),
+      __TEST_BANNER__: JSON.stringify(env.TEST_BANNER || '0'),
     },
     server: {
       proxy: {

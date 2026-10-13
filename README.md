@@ -67,6 +67,7 @@ Create a `.env` file in the project root:
 | `CLOUDFLARE_TUNNEL_TOKEN` | No (prod) | Cloudflare tunnel token used by `run.sh prod`. Read from the shell environment first, then from `.env`; if empty you are prompted. |
 | `CLEANUP_ENABLED` | No | Set to `0` to disable the nightly product cleanup job. Defaults to `1`. |
 | `CLEANUP_OLD_HOURS` | No | Age in hours after which a product is soft-deleted by the nightly job, independently of its expiration date. Defaults to `72`. |
+| `TEST_BANNER` | No | Set to `1` to show a small "app is in testing" banner at the top of the frontend. Defaults to `0`. |
 
 ### Frontend variables and `.env` safety
 
