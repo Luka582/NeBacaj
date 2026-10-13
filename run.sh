@@ -357,12 +357,17 @@ cleanup_dev() {
   log "Shutting down development..."
   kill_tree "$VITE_PID"
   kill_tree "$UVICORN_PID"
+  # also kill any leftover dev processes
+  terminate_dev 2>/dev/null || true
   wait 2>/dev/null || true
   if [ -L "$NGINX_ENABLED" ] || [ -f "$NGINX_ENABLED" ]; then
     $SUDO rm -f "$NGINX_ENABLED"
     $SUDO systemctl reload nginx 2>/dev/null || true
   fi
   log "Stopped."
+  # restore terminal
+  stty sane 2>/dev/null || true
+  tput cnorm 2>/dev/null || true
 }
 
 on_signal() { cleanup_dev; exit 0; }
