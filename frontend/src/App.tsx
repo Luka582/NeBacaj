@@ -655,7 +655,7 @@ function App() {
     <div className="relative h-full w-full">      {TEST_BANNER && (
         <div className="pointer-events-none fixed left-0 right-0 bottom-0 z-[9999] w-full">
           <div className="pointer-events-auto w-full bg-amber-500 py-1 text-center text-xs font-semibold text-white shadow-lg">
-            Aplikacija je u testiranju i nije finalizovana
+            Aplikacija je u testiranju i nije finalizovana, podaci su samo ilustracionog karaktera.
           </div>
         </div>
       )}
