@@ -309,6 +309,7 @@ function App() {
   const [inputFocused, setInputFocused] = useState(false)
   const focusedSearch = useRef<'town' | 'product' | null>(null)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
+  const [locationSettled, setLocationSettled] = useState(false)
   const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
   const [detailStoreId, setDetailStoreId] = useState<string | null>(null)
@@ -545,7 +546,10 @@ function App() {
   }
 
   function requestLocation(options?: { maximumAge?: number }) {
-    const fallback = () => fitToStores(filtered)
+    const fallback = () => {
+      setLocationSettled(true)
+      fitToStores(filtered)
+    }
     if (!navigator.geolocation) {
       fallback()
       return
@@ -555,6 +559,7 @@ function App() {
         const lat = pos.coords.latitude
         const lng = pos.coords.longitude
         setUserLocation([lat, lng])
+        setLocationSettled(true)
         requestSeq.current += 1
         setMapRequest({ seq: requestSeq.current, type: 'location', lat, lng, radiusKm: LOCATION_RADIUS_KM })
         fetch(`/api/town/${lat}/${lng}`)
@@ -582,11 +587,31 @@ function App() {
   }
 
   useEffect(() => {
-    requestLocation({ maximumAge: 0 })
+    let cancelled = false
+    void (async () => {
+      let state: PermissionState | null = null
+      try {
+        if (navigator.permissions?.query) {
+          state = (await navigator.permissions.query({ name: 'geolocation' as PermissionName })).state
+        }
+      } catch {
+        state = null
+      }
+      if (cancelled) return
+      // Only block the initial product search on the location when permission is
+      // already granted, where the position resolves quickly. Otherwise search
+      // right away without it (a later grant triggers one follow-up search).
+      if (state !== 'granted') setLocationSettled(true)
+      requestLocation({ maximumAge: 0 })
+    })()
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
+    if (!locationSettled) return
     const q = productSearchQuery.trim()
     const requestId = ++productSearchRequestRef.current
     const timer = window.setTimeout(
@@ -623,7 +648,7 @@ function App() {
       q ? 300 : 0,
     )
     return () => window.clearTimeout(timer)
-  }, [productSearchQuery, selectedTown, userLocation, invalidateSignal, selectedStoreType])
+  }, [productSearchQuery, selectedTown, userLocation, invalidateSignal, selectedStoreType, locationSettled])
 
   function openProductFromSearch(result: ProductSearchResult) {
     requestSeq.current += 1
