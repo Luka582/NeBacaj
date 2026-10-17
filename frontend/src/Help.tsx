@@ -72,7 +72,7 @@ function Help({ onBack }: HelpProps) {
           items={[
             'Naziv je obavezan.',
             'Količina je opciona (ceo broj).',
-            'Opis i slika su opcioni — sliku možete izabrati iz galerije ili uslikati kamerom.',
+            'Opis i slika su opcioni - sliku možete izabrati iz galerije ili uslikati kamerom.',
           ]}
         />
         <p>
@@ -85,16 +85,16 @@ function Help({ onBack }: HelpProps) {
         <Bullets
           items={[
             <>
-              <strong>Cena</strong> — prikazuje se jedna cena.
+              <strong>Cena</strong> - prikazuje se jedna cena.
             </>,
             <>
-              <strong>Sa popustom</strong> — stara cena je precrtana, a nova istaknuta.
+              <strong>Sa popustom</strong> - stara cena je precrtana, a nova istaknuta.
             </>,
             <>
-              <strong>Besplatno</strong> — proizvod je označen kao besplatan.
+              <strong>Besplatno</strong> - proizvod je označen kao besplatan.
             </>,
             <>
-              <strong>Bez cene</strong> — cena se uopšte ne prikazuje.
+              <strong>Bez cene</strong> - cena se uopšte ne prikazuje.
             </>,
           ]}
         />
@@ -103,7 +103,7 @@ function Help({ onBack }: HelpProps) {
       <Section title="Koliko dugo traje proizvod">
         <p>
           Proizvod se prikazuje tokom tekuće radne smene prodavnice („danas“). Kada smena, odnosno
-          dan, istekne, proizvod sam nestaje sa glavne liste — <strong>ne briše se</strong> i ne
+          dan, istekne, proizvod sam nestaje sa glavne liste - <strong>ne briše se</strong> i ne
           morate ništa da radite.
         </p>
       </Section>
@@ -131,14 +131,14 @@ function Help({ onBack }: HelpProps) {
         <Bullets
           items={[
             <>
-              <strong>Ručno</strong> — obaveštenje uključujete i isključujete dugmetom{' '}
+              <strong>Ručno</strong> - obaveštenje uključujete i isključujete dugmetom{' '}
               <strong>Aktiviraj</strong> / <strong>Deaktiviraj</strong>. Aktiviranje je moguće{' '}
               <strong>samo dok je prodavnica otvorena</strong>; deaktivacija je moguća u svakom
               trenutku. Obaveštenje se <strong>isključuje automatski na kraju smene</strong>, pa ga
               sledećeg radnog dana morate ponovo aktivirati.
             </>,
             <>
-              <strong>Periodično</strong> — obaveštenje se samo prikazuje u zadatim terminima po
+              <strong>Periodično</strong> - obaveštenje se samo prikazuje u zadatim terminima po
               danima nedelje. Za svaki dan podesite vreme početka i trajanje; termin mora biti{' '}
               <strong>u okviru radnog vremena prodavnice</strong> i ne može se zakazati na dan kada
               je prodavnica zatvorena.

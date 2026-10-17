@@ -539,7 +539,7 @@ function Announcement({ onClose, onSaved }: { onClose: () => void; onSaved?: () 
                     <div className="rounded-2xl border border-slate-200 p-4">
                       {!openNow && !active && (
                         <p className="mb-2 text-xs text-slate-500">
-                          Prodavnica je zatvorena — aktiviranje je moguće dok je otvorena.
+                          Prodavnica je zatvorena - aktiviranje je moguće dok je otvorena.
                         </p>
                       )}
                       <button

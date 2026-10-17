@@ -988,7 +988,7 @@ function App() {
           <div className="rounded-2xl bg-white/95 p-3.5 shadow-xl ring-1 ring-slate-900/5 backdrop-blur">
             <div className="flex items-center gap-2.5">
               <img src="/favicon.svg" alt="" className="h-9 w-9 shrink-0" />
-              <p className="text-sm leading-tight font-extrabold text-slate-900">Ne bacaj hranu — spasi je u svom kraju.</p>
+              <p className="text-sm leading-tight font-extrabold text-slate-900">Ne bacaj hranu - spasi je u svom kraju.</p>
               <button
                 type="button"
                 onClick={dismissHint}
@@ -1010,7 +1010,7 @@ function App() {
               </button>
             </div>
             <p className="mt-0.5 text-xs text-slate-500">
-              Pronađi proizvode pred istek, poslednje komade i dnevni višak iz pekara, marketa i restorana — pre nego što završe u kanti.
+              Pronađi proizvode pred istek, poslednje komade i dnevni višak iz pekara, marketa i restorana - pre nego što završe u kanti.
             </p>
             <div className="mt-2.5 flex gap-2">
               <button

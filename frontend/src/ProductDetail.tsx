@@ -106,7 +106,7 @@ function ProductDetail({
                       : `po ceni ${formatPrice(product.new_price)}`
                 navigator
                   .share({
-                    title: `${product.name} — ${sharePrice}`,
+                    title: `${product.name} - ${sharePrice}`,
                     text: `Evo proizvoda na NeBacaj: ${product.name} ${sharePrice} (${storeName}).`,
                     url: window.location.href,
                   })

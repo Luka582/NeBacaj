@@ -419,7 +419,7 @@ function StoreDetail({
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-slate-900 break-words">{p.name}</p>
+                          <p className="text-sm font-semibold text-slate-900 truncate">{p.name}</p>
                           <p className="mt-0.5 text-xs text-slate-400">{relativeTimeAgo(p.creation_date)}</p>
                           {p.amount !== null && p.amount !== undefined && (
                             <p className="mt-0.5 text-xs text-slate-500">Količina: {p.amount}</p>
