@@ -6,6 +6,7 @@ import CameraCapture from './CameraCapture'
 import { dismissKeyboard } from './tapHandlers'
 import { useViewportHeight } from './useViewportHeight'
 import { useBackLayer } from './backStack'
+import { DESC_MAX, CharCounter } from './CharCounter'
 
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` }
@@ -346,6 +347,10 @@ function Announcement({ onClose, onSaved }: { onClose: () => void; onSaved?: () 
 
   async function saveGeneral() {
     if (!storeId) return
+    if (description.trim().length > DESC_MAX) {
+      setError(`Opis može imati najviše ${DESC_MAX} karaktera.`)
+      return
+    }
     setBusy(true)
     setError(null)
     setOkMessage(null)
@@ -525,7 +530,7 @@ function Announcement({ onClose, onSaved }: { onClose: () => void; onSaved?: () 
                         className="mt-3 h-32 w-full rounded-xl object-cover"
                       />
                     )}
-                    <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                    <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap break-words text-slate-700">
                       {description || <span className="text-slate-400">Nema opisa</span>}
                     </p>
                   </div>
@@ -534,7 +539,7 @@ function Announcement({ onClose, onSaved }: { onClose: () => void; onSaved?: () 
                     <div className="rounded-2xl border border-slate-200 p-4">
                       {!openNow && !active && (
                         <p className="mb-2 text-xs text-slate-500">
-                          Prodavnica je zatvorena — aktiviranje je moguće dok je otvorena.
+                          Prodavnica je zatvorena - aktiviranje je moguće dok je otvorena.
                         </p>
                       )}
                       <button
@@ -578,9 +583,13 @@ function Announcement({ onClose, onSaved }: { onClose: () => void; onSaved?: () 
               ) : view === 'general' ? (
                 <>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Opis</label>
+                    <div className="mb-1 flex items-center justify-between">
+                      <label className="block text-sm font-semibold text-slate-700">Opis</label>
+                      <CharCounter current={description.length} max={DESC_MAX} />
+                    </div>
                     <textarea
                       ref={descriptionRef}
+                      maxLength={DESC_MAX}
                       value={description}
                       onChange={(e) => {
                         setDescription(e.target.value)

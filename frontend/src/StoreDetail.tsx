@@ -252,7 +252,7 @@ function StoreDetail({
               </div>
 
               {store.description && (
-                <p className="mt-3 text-sm leading-relaxed text-slate-700">{store.description}</p>
+                <p className="mt-3 text-sm leading-relaxed break-words text-slate-700">{store.description}</p>
               )}
 
               <div className="mt-4 grid grid-cols-1 gap-2">
@@ -419,7 +419,7 @@ function StoreDetail({
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-slate-900">{p.name}</p>
+                          <p className="text-sm font-semibold text-slate-900 truncate">{p.name}</p>
                           <p className="mt-0.5 text-xs text-slate-400">{relativeTimeAgo(p.creation_date)}</p>
                           {p.amount !== null && p.amount !== undefined && (
                             <p className="mt-0.5 text-xs text-slate-500">Količina: {p.amount}</p>

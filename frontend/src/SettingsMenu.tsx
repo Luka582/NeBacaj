@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { dismissKeyboard } from './tapHandlers'
 import type { Session } from './auth'
 import { useSession, saveSession, clearSession } from './auth'
@@ -75,11 +75,13 @@ interface SettingsMenuProps {
   onClose: () => void
   onOpenMyProducts: () => void
   onOpenAnnouncement: () => void
+  onOpenStore: (storeId: string) => void
 }
 
-function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement }: SettingsMenuProps) {
+function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onOpenStore }: SettingsMenuProps) {
   const session = useSession()
   const vh = useViewportHeight()
+  const [workerStore, setWorkerStore] = useState<{ id: string; name: string; address: string } | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [oldPassword, setOldPassword] = useState('')
@@ -101,6 +103,78 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement }: S
   useBackLayer(open && changing, () => setChanging(false))
   useBackLayer(open && recovering, () => setRecovering(false))
   useBackLayer(open && helpOpen, () => setHelpOpen(false))
+
+  // SettingsMenu stays mounted while closed, so clear any sub-view whenever the
+  // menu is dismissed. Otherwise reopening it would resume wherever the user
+  // left off (e.g. the change-password form).
+  useEffect(() => {
+    if (open) return
+    setChanging(false)
+    setRecovering(false)
+    setHelpOpen(false)
+    setCodeSent(false)
+    setError(null)
+    setLoginFailed(false)
+    setChangeFailed(false)
+    setPassword('')
+    setOldPassword('')
+    setNewPassword('')
+    setRepeatPassword('')
+    setRecoveryCode('')
+    setRecoveryNewPassword('')
+    setRecoveryRepeat('')
+  }, [open])
+
+  function handleBack() {
+    if (changing) {
+      setChanging(false)
+      return
+    }
+    if (recovering) {
+      setRecovering(false)
+      setCodeSent(false)
+      return
+    }
+    if (helpOpen) {
+      setHelpOpen(false)
+      return
+    }
+    onClose()
+  }
+
+  useEffect(() => {
+    if (!open || !session) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const meRes = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${session.token}` } })
+        if (!meRes.ok) return
+        const me = (await meRes.json()) as { store_id: string | null }
+        if (!me.store_id) return
+        const storeRes = await fetch(`/api/store/${me.store_id}`)
+        if (!storeRes.ok) return
+        const store = (await storeRes.json()) as {
+          name?: string
+          street?: string
+          street_number?: string
+          town?: string
+        }
+        if (cancelled || typeof store.name !== 'string') return
+        const streetLine = [store.street, store.street_number]
+          .filter((part) => typeof part === 'string' && part !== '')
+          .join(' ')
+        const address = [streetLine, store.town]
+          .filter((part) => typeof part === 'string' && part !== '')
+          .join(', ')
+        setWorkerStore({ id: me.store_id, name: store.name, address })
+      } catch {
+        // ignore — the store card simply stays hidden
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open, session])
 
   async function handleLogin(event: React.FormEvent) {
     event.preventDefault()
@@ -314,7 +388,7 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement }: S
       <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-2 py-3">
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleBack}
           aria-label="Nazad"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
         >
@@ -395,6 +469,24 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement }: S
               <p className="text-xs text-slate-400">Prijavljeni ste kao</p>
               <p className="truncate text-sm font-semibold text-slate-900">{session.email}</p>
             </div>
+            {workerStore && (
+              <>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="text-xs text-slate-400">Prodavnica</p>
+                  <p className="break-words text-sm font-semibold text-slate-900">{workerStore.name}</p>
+                  {workerStore.address !== '' && (
+                    <p className="mt-0.5 break-words text-xs text-slate-500">{workerStore.address}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenStore(workerStore.id)}
+                  className="w-full rounded-lg border border-slate-200 py-3 text-sm font-semibold text-brand-700 active:bg-brand-50"
+                >
+                  Pogledaj radnju
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={onOpenMyProducts}

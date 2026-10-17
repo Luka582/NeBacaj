@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(root))
 
+from backend.schemas import NAME_MAX, DESC_MAX, PRICE_MAX  # noqa: E402
+
 import streamlit as st
 
 from admin.api import Backend, BackendError, DEFAULT_BACKEND_URL
@@ -423,7 +425,7 @@ def _render_store_announcement(backend: Backend, store: dict) -> None:
             "periodic": periodic,
         })
         with st.form(f"form_{prefix}"):
-            st.text_area("Tekst obaveštenja", key=f"{prefix}_description")
+            st.text_area("Tekst obaveštenja", key=f"{prefix}_description", max_chars=DESC_MAX)
             st.checkbox("Periodično (ponavlja se po nedeljnom rasporedu)", key=f"{prefix}_periodic")
             image, url, remove = image_widgets(prefix, store.get("announcement_image_url"))
             submitted = st.form_submit_button("Sačuvaj obaveštenje")
@@ -500,7 +502,7 @@ def _render_store_edit(backend: Backend, store: dict) -> None:
     with st.form(f"form_{prefix}"):
         col1, col2 = st.columns(2)
         with col1:
-            name = st.text_input("Name", key=f"{prefix}_name")
+            name = st.text_input("Name", key=f"{prefix}_name", max_chars=NAME_MAX)
             town = st.text_input("Town", key=f"{prefix}_town")
             street = st.text_input("Street", key=f"{prefix}_street")
             street_number = st.text_input("Street number", key=f"{prefix}_street_number")
@@ -511,7 +513,7 @@ def _render_store_edit(backend: Backend, store: dict) -> None:
             latitude = st.number_input("Latitude", format="%.6f", key=f"{prefix}_latitude")
             longitude = st.number_input("Longitude", format="%.6f", key=f"{prefix}_longitude")
             is_active = st.checkbox("Active", key=f"{prefix}_is_active")
-            description = st.text_area("Description", key=f"{prefix}_description")
+            description = st.text_area("Description", key=f"{prefix}_description", max_chars=DESC_MAX)
         st.markdown("**Working hours**")
         hours = render_hours(prefix)
         image, url, remove = image_widgets(prefix, store.get("image_url"))
@@ -591,7 +593,7 @@ def _render_store_add(backend: Backend) -> None:
     with st.form("form_new_store"):
         col1, col2 = st.columns(2)
         with col1:
-            name = st.text_input("Name", key=f"{prefix}_name")
+            name = st.text_input("Name", key=f"{prefix}_name", max_chars=NAME_MAX)
             town = st.text_input("Town", key=f"{prefix}_town")
             street = st.text_input("Street", key=f"{prefix}_street")
             street_number = st.text_input("Street number", key=f"{prefix}_street_number")
@@ -602,7 +604,7 @@ def _render_store_add(backend: Backend) -> None:
             latitude = st.number_input("Latitude", format="%.6f", key=f"{prefix}_latitude")
             longitude = st.number_input("Longitude", format="%.6f", key=f"{prefix}_longitude")
             is_active = st.checkbox("Active", key=f"{prefix}_is_active")
-            description = st.text_area("Description", key=f"{prefix}_description")
+            description = st.text_area("Description", key=f"{prefix}_description", max_chars=DESC_MAX)
         st.markdown("**Working hours**")
         hours = render_hours(prefix)
         image, url, _ = image_widgets(prefix, None, show_remove=False)
@@ -752,19 +754,19 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
         key=f"{prefix}_price_case",
     )
     with st.form(f"form_{prefix}"):
-        name = st.text_input("Name", key=f"{prefix}_name")
+        name = st.text_input("Name", key=f"{prefix}_name", max_chars=NAME_MAX)
         old_price = None
         new_price = None
         if price_case in ("price", "discount"):
-            new_price = st.number_input("Nova cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_new_price")
+            new_price = st.number_input("Nova cena (RSD)", min_value=0.01, max_value=PRICE_MAX, format="%.2f", key=f"{prefix}_new_price")
         if price_case == "discount":
-            old_price = st.number_input("Stara cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_old_price")
+            old_price = st.number_input("Stara cena (RSD)", min_value=0.01, max_value=PRICE_MAX, format="%.2f", key=f"{prefix}_old_price")
         col1, col2 = st.columns(2)
         with col1:
             amount = st.number_input("Amount", min_value=0, key=f"{prefix}_amount")
             is_active = st.checkbox("Active", key=f"{prefix}_is_active")
         with col2:
-            description = st.text_area("Description", key=f"{prefix}_description")
+            description = st.text_area("Description", key=f"{prefix}_description", max_chars=DESC_MAX)
             expiration = st.text_input("Expiration (YYYY-MM-DD, optional)", key=f"{prefix}_expiration")
         image, url, remove = image_widgets(prefix, product.get("image_url"))
         submitted = st.form_submit_button("Save changes")
@@ -824,18 +826,18 @@ def _render_product_add(backend: Backend, default_store_id: str, store_ids: list
         store_id = st.selectbox(
             "Store", store_ids, format_func=lambda x: store_labels.get(x, x), key=f"{prefix}_store"
         )
-        name = st.text_input("Name", key=f"{prefix}_name")
+        name = st.text_input("Name", key=f"{prefix}_name", max_chars=NAME_MAX)
         old_price = None
         new_price = None
         if price_case in ("price", "discount"):
-            new_price = st.number_input("Nova cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_new_price")
+            new_price = st.number_input("Nova cena (RSD)", min_value=0.01, max_value=PRICE_MAX, format="%.2f", key=f"{prefix}_new_price")
         if price_case == "discount":
-            old_price = st.number_input("Stara cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_old_price")
+            old_price = st.number_input("Stara cena (RSD)", min_value=0.01, max_value=PRICE_MAX, format="%.2f", key=f"{prefix}_old_price")
         col1, col2 = st.columns(2)
         with col1:
             amount = st.number_input("Amount", min_value=0, key=f"{prefix}_amount")
         with col2:
-            description = st.text_area("Description", key=f"{prefix}_description")
+            description = st.text_area("Description", key=f"{prefix}_description", max_chars=DESC_MAX)
             expiration = st.text_input("Expiration (YYYY-MM-DD, optional)", key=f"{prefix}_expiration")
         image, url, _ = image_widgets(prefix, None, show_remove=False)
         submitted = st.form_submit_button("Create product")

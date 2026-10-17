@@ -106,7 +106,7 @@ function ProductDetail({
                       : `po ceni ${formatPrice(product.new_price)}`
                 navigator
                   .share({
-                    title: `${product.name} — ${sharePrice}`,
+                    title: `${product.name} - ${sharePrice}`,
                     text: `Evo proizvoda na NeBacaj: ${product.name} ${sharePrice} (${storeName}).`,
                     url: window.location.href,
                   })
@@ -228,7 +228,7 @@ function ProductDetail({
                 )}
                 {product.description ? (
                   <li className="pt-3 pb-1">
-                    <p className="text-sm leading-relaxed text-slate-700">{product.description}</p>
+                    <p className="text-sm leading-relaxed break-words text-slate-700">{product.description}</p>
                   </li>
                 ) : (
                   <li className="py-2.5 text-sm text-slate-400">Nema opisa</li>

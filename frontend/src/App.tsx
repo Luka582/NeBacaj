@@ -309,6 +309,7 @@ function App() {
   const [inputFocused, setInputFocused] = useState(false)
   const focusedSearch = useRef<'town' | 'product' | null>(null)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
+  const [locationSettled, setLocationSettled] = useState(false)
   const [mapRequest, setMapRequest] = useState<MapRequest | null>(null)
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
   const [detailStoreId, setDetailStoreId] = useState<string | null>(null)
@@ -545,7 +546,10 @@ function App() {
   }
 
   function requestLocation(options?: { maximumAge?: number }) {
-    const fallback = () => fitToStores(filtered)
+    const fallback = () => {
+      setLocationSettled(true)
+      fitToStores(filtered)
+    }
     if (!navigator.geolocation) {
       fallback()
       return
@@ -555,6 +559,7 @@ function App() {
         const lat = pos.coords.latitude
         const lng = pos.coords.longitude
         setUserLocation([lat, lng])
+        setLocationSettled(true)
         requestSeq.current += 1
         setMapRequest({ seq: requestSeq.current, type: 'location', lat, lng, radiusKm: LOCATION_RADIUS_KM })
         fetch(`/api/town/${lat}/${lng}`)
@@ -582,11 +587,31 @@ function App() {
   }
 
   useEffect(() => {
-    requestLocation({ maximumAge: 0 })
+    let cancelled = false
+    void (async () => {
+      let state: PermissionState | null = null
+      try {
+        if (navigator.permissions?.query) {
+          state = (await navigator.permissions.query({ name: 'geolocation' as PermissionName })).state
+        }
+      } catch {
+        state = null
+      }
+      if (cancelled) return
+      // Only block the initial product search on the location when permission is
+      // already granted, where the position resolves quickly. Otherwise search
+      // right away without it (a later grant triggers one follow-up search).
+      if (state !== 'granted') setLocationSettled(true)
+      requestLocation({ maximumAge: 0 })
+    })()
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
+    if (!locationSettled) return
     const q = productSearchQuery.trim()
     const requestId = ++productSearchRequestRef.current
     const timer = window.setTimeout(
@@ -623,7 +648,7 @@ function App() {
       q ? 300 : 0,
     )
     return () => window.clearTimeout(timer)
-  }, [productSearchQuery, selectedTown, userLocation, invalidateSignal, selectedStoreType])
+  }, [productSearchQuery, selectedTown, userLocation, invalidateSignal, selectedStoreType, locationSettled])
 
   function openProductFromSearch(result: ProductSearchResult) {
     requestSeq.current += 1
@@ -639,6 +664,7 @@ function App() {
   function openStorePopup(storeId: string) {
     setDetailStoreId(null)
     setSearchProductOpen(null)
+    setSettingsOpen(false)
     setSheetExpanded(false)
     const s = stores.find((st) => st.id === storeId)
     if (s) {
@@ -655,7 +681,7 @@ function App() {
     <div className="relative h-full w-full">      {TEST_BANNER && (
         <div className="pointer-events-none fixed left-0 right-0 bottom-0 z-[9999] w-full">
           <div className="pointer-events-auto w-full bg-amber-500 py-1 text-center text-xs font-semibold text-white shadow-lg">
-            Aplikacija je u testiranju i nije finalizovana
+            Aplikacija je u testiranju i nije finalizovana, podaci su samo ilustracionog karaktera.
           </div>
         </div>
       )}
@@ -752,7 +778,7 @@ function App() {
                         </>
                       )}
                     </div>
-                    <div className="store-popup-name">{store.name}</div>
+                    <div className="store-popup-name break-words">{store.name}</div>
                     <div className="store-popup-address">
                       {store.street} {store.street_number}
                     </div>
@@ -962,7 +988,7 @@ function App() {
           <div className="rounded-2xl bg-white/95 p-3.5 shadow-xl ring-1 ring-slate-900/5 backdrop-blur">
             <div className="flex items-center gap-2.5">
               <img src="/favicon.svg" alt="" className="h-9 w-9 shrink-0" />
-              <p className="text-sm leading-tight font-extrabold text-slate-900">Ne bacaj hranu — spasi je u svom kraju.</p>
+              <p className="text-sm leading-tight font-extrabold text-slate-900">Ne bacaj hranu - spasi je u svom kraju.</p>
               <button
                 type="button"
                 onClick={dismissHint}
@@ -984,7 +1010,7 @@ function App() {
               </button>
             </div>
             <p className="mt-0.5 text-xs text-slate-500">
-              Pronađi proizvode pred istek, poslednje komade i dnevni višak iz pekara, marketa i restorana — pre nego što završe u kanti.
+              Pronađi proizvode pred istek, poslednje komade i dnevni višak iz pekara, marketa i restorana - pre nego što završe u kanti.
             </p>
             <div className="mt-2.5 flex gap-2">
               <button
@@ -1059,6 +1085,9 @@ function App() {
         onOpenAnnouncement={() => {
           setSettingsOpen(false)
           setAnnouncementOpen(true)
+        }}
+        onOpenStore={(storeId) => {
+          setDetailStoreId(storeId)
         }}
       />
       {myProductsOpen && <MyProducts onClose={() => setMyProductsOpen(false)} onChanged={loadStores} />}
