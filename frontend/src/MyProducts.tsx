@@ -7,6 +7,7 @@ import FreeTag from './FreeTag'
 import CameraCapture from './CameraCapture'
 import { dismissKeyboard } from './tapHandlers'
 import { useBackLayer } from './backStack'
+import { NAME_MAX, DESC_MAX, CharCounter } from './CharCounter'
 
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` }
@@ -162,6 +163,15 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
       setError('Unesite naziv proizvoda.')
       return
     }
+    if (trimmed.length > NAME_MAX) {
+      setError(`Naziv može imati najviše ${NAME_MAX} karaktera.`)
+      return
+    }
+    const desc = description.trim()
+    if (desc.length > DESC_MAX) {
+      setError(`Opis može imati najviše ${DESC_MAX} karaktera.`)
+      return
+    }
     const priceNum = priceCase === 'free' || priceCase === 'none' ? null : Number(price)
     const oldPriceNum = priceCase === 'discount' ? Number(oldPrice) : null
     if (priceCase === 'price' || priceCase === 'discount') {
@@ -187,7 +197,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
     }
     if (mode === 'create') payload.store_id = storeId
     if (amt != null) payload.amount = amt
-    payload.description = description.trim() === '' ? null : description.trim()
+    payload.description = desc === '' ? null : desc
     if (mode === 'edit' || mode === 'reactivate') {
       payload.is_active = true
       if (removeImage) payload.image_url = null
@@ -279,9 +289,13 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
         onTouchMove={dismissKeyboard}
       >
         <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-500">Naziv *</label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="block text-xs font-semibold text-slate-500">Naziv *</label>
+            <CharCounter current={name.length} max={NAME_MAX} />
+          </div>
           <input
             type="text"
+            maxLength={NAME_MAX}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Naziv proizvoda"
@@ -371,9 +385,13 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-500">Opis</label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="block text-xs font-semibold text-slate-500">Opis</label>
+            <CharCounter current={description.length} max={DESC_MAX} />
+          </div>
           <textarea
             ref={descriptionRef}
+            maxLength={DESC_MAX}
             value={description}
             onChange={(e) => {
               setDescription(e.target.value)

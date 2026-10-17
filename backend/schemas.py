@@ -2,6 +2,9 @@ from pydantic import BaseModel, Field, model_validator
 from datetime import datetime
 from .db import StoreType, UserRole
 
+NAME_MAX = 60
+DESC_MAX = 300
+
 
 class LoginRequest(BaseModel):
     email: str
@@ -65,8 +68,8 @@ class StoreCreate(BaseModel):
     street_number: str
     latitude: float
     longitude: float
-    name: str
-    description: str | None = None
+    name: str = Field(min_length=1, max_length=NAME_MAX)
+    description: str | None = Field(default=None, max_length=DESC_MAX)
     image_url: str | None = None
     is_active: bool = True
     store_type: StoreType
@@ -94,8 +97,8 @@ class StoreUpdate(BaseModel):
     street_number: str | None = None
     latitude: float | None = None
     longitude: float | None = None
-    name: str | None = None
-    description: str | None = None
+    name: str | None = Field(default=None, max_length=NAME_MAX)
+    description: str | None = Field(default=None, max_length=DESC_MAX)
     image_url: str | None = None
     is_active: bool | None = None
     store_type: StoreType | None = None
@@ -120,8 +123,8 @@ class ProductCreate(BaseModel):
     amount: int | None = Field(default=None, ge=1)
     old_price: float | None = Field(default=None, ge=0)
     new_price: float | None = Field(default=None, ge=0)
-    name: str
-    description: str | None = None
+    name: str = Field(min_length=1, max_length=NAME_MAX)
+    description: str | None = Field(default=None, max_length=DESC_MAX)
     image_url: str | None = None
     expiration_date: datetime | None = None
 
@@ -137,8 +140,8 @@ class ProductUpdate(BaseModel):
     amount: int | None = Field(default=None, ge=1)
     old_price: float | None = Field(default=None, ge=0)
     new_price: float | None = Field(default=None, ge=0)
-    name: str | None = None
-    description: str | None = None
+    name: str | None = Field(default=None, max_length=NAME_MAX)
+    description: str | None = Field(default=None, max_length=DESC_MAX)
     image_url: str | None = None
     is_active: bool | None = None
     expiration_date: datetime | None = None
@@ -279,7 +282,7 @@ class ProductSearchResult(BaseModel):
 
 
 class AnnouncementUpdate(BaseModel):
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=DESC_MAX)
     image_url: str | None = None
     periodic: bool | None = None
     manual_active: bool | None = None

@@ -6,6 +6,7 @@ import CameraCapture from './CameraCapture'
 import { dismissKeyboard } from './tapHandlers'
 import { useViewportHeight } from './useViewportHeight'
 import { useBackLayer } from './backStack'
+import { DESC_MAX, CharCounter } from './CharCounter'
 
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` }
@@ -346,6 +347,10 @@ function Announcement({ onClose, onSaved }: { onClose: () => void; onSaved?: () 
 
   async function saveGeneral() {
     if (!storeId) return
+    if (description.trim().length > DESC_MAX) {
+      setError(`Opis može imati najviše ${DESC_MAX} karaktera.`)
+      return
+    }
     setBusy(true)
     setError(null)
     setOkMessage(null)
@@ -578,9 +583,13 @@ function Announcement({ onClose, onSaved }: { onClose: () => void; onSaved?: () 
               ) : view === 'general' ? (
                 <>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Opis</label>
+                    <div className="mb-1 flex items-center justify-between">
+                      <label className="block text-sm font-semibold text-slate-700">Opis</label>
+                      <CharCounter current={description.length} max={DESC_MAX} />
+                    </div>
                     <textarea
                       ref={descriptionRef}
+                      maxLength={DESC_MAX}
                       value={description}
                       onChange={(e) => {
                         setDescription(e.target.value)

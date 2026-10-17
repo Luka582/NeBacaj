@@ -111,6 +111,12 @@ OTHER_NAMES = ["Prodavnica Tehnomedija", "Kiosk Delta", "Zlatara Venera", "Knji�
 
 PRODUCT_NAMES = ["Hleb", "Mleko", "Jogurt", "Sir", "Jaja", "Kafa", "Čokolada", "Voćni jogurt", "Kifla", "Burek"]
 
+PRODUCT_DESCRIPTIONS = [
+    "Opis proizvoda - svež proizvod iz redovne ponude, sniženo zbog isteka roka.",
+    "Opis proizvoda - sveže i kvalitetno, dostupno u ograničenoj količini.",
+    "Opis proizvoda - povoljna cena, iskoristiti pre isteka roka.",
+]
+
 
 def _pick_store_name(store_type: StoreType) -> str:
     if store_type == StoreType.market:
@@ -177,7 +183,7 @@ def _make_product(store: Store, index: int) -> Product:
         old_price=old_price,
         new_price=new_price,
         name=f"{choice(PRODUCT_NAMES)} #{index}",
-        description="Opis proizvoda - Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis eu gravida lorem, vitae semper lectus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus pulvinar sem lectus, quis tincidunt libero viverra ac. Mauris condimentum augue vulputate tempus scelerisque. Donec id lobortis nulla, in sodales magna. In vel blandit massa, molestie hendrerit urna." if randint(0, 1) else None,
+        description=choice(PRODUCT_DESCRIPTIONS) if randint(0, 1) else None,
         image_url=product_image_url(),
         is_active=store.is_active,
         expiration_date=datetime.now(SERBIA_TZ) + timedelta(days=randint(1, 30), hours=randint(0, 23)) if randint(0, 1) else None,
