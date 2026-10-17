@@ -752,7 +752,7 @@ function App() {
                         </>
                       )}
                     </div>
-                    <div className="store-popup-name">{store.name}</div>
+                    <div className="store-popup-name break-words">{store.name}</div>
                     <div className="store-popup-address">
                       {store.street} {store.street_number}
                     </div>

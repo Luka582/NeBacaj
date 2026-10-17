@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { loadSession, saveSession, clearSession, isWorker } from './auth'
 import type { Session } from './auth'
-import { belgradeDateKey, cropImageUrl, formatPrice, formatShortDate } from './format'
+import { belgradeDateKey, cropImageUrl, formatPrice, formatShortDate, PRICE_MAX } from './format'
 import FreeTag from './FreeTag'
 import CameraCapture from './CameraCapture'
 import { dismissKeyboard } from './tapHandlers'
@@ -179,10 +179,18 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
         setError('Unesite novu cenu veću od 0.')
         return
       }
+      if ((priceNum as number) > PRICE_MAX) {
+        setError('Cena može biti najviše 9.999.999,99 RSD.')
+        return
+      }
     }
     if (priceCase === 'discount') {
       if (!oldPrice.trim() || !Number.isFinite(oldPriceNum) || (oldPriceNum as number) <= (priceNum as number)) {
         setError('Stara cena mora biti veća od nove cene.')
+        return
+      }
+      if ((oldPriceNum as number) > PRICE_MAX) {
+        setError('Cena može biti najviše 9.999.999,99 RSD.')
         return
       }
     }
@@ -327,6 +335,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
                 type="number"
                 inputMode="decimal"
                 min="0"
+                max={PRICE_MAX}
                 step="0.01"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
@@ -343,6 +352,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
                   type="number"
                   inputMode="decimal"
                   min="0"
+                  max={PRICE_MAX}
                   step="0.01"
                   value={oldPrice}
                   onChange={(e) => setOldPrice(e.target.value)}
@@ -356,6 +366,7 @@ function ProductForm({ mode, token, storeId, productId, onSaved, onCancel }: Pro
                   type="number"
                   inputMode="decimal"
                   min="0"
+                  max={PRICE_MAX}
                   step="0.01"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
@@ -784,7 +795,7 @@ function MyProducts({ onClose, onChanged }: MyProductsProps) {
         ) : (
           <div className="mx-auto w-full max-w-lg space-y-5">
             {storeName !== '' && (
-              <p className="text-xs font-semibold text-slate-400">Prodavnica: {storeName}</p>
+              <p className="text-xs font-semibold text-slate-400 break-words">Prodavnica: {storeName}</p>
             )}
             {error && <p className="text-sm text-red-500">{error}</p>}
             {storeId != null && (

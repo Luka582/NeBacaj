@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(root))
 
-from backend.schemas import NAME_MAX, DESC_MAX  # noqa: E402
+from backend.schemas import NAME_MAX, DESC_MAX, PRICE_MAX  # noqa: E402
 
 import streamlit as st
 
@@ -758,9 +758,9 @@ def _render_product_edit(backend: Backend, store_id: str, product: dict) -> None
         old_price = None
         new_price = None
         if price_case in ("price", "discount"):
-            new_price = st.number_input("Nova cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_new_price")
+            new_price = st.number_input("Nova cena (RSD)", min_value=0.01, max_value=PRICE_MAX, format="%.2f", key=f"{prefix}_new_price")
         if price_case == "discount":
-            old_price = st.number_input("Stara cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_old_price")
+            old_price = st.number_input("Stara cena (RSD)", min_value=0.01, max_value=PRICE_MAX, format="%.2f", key=f"{prefix}_old_price")
         col1, col2 = st.columns(2)
         with col1:
             amount = st.number_input("Amount", min_value=0, key=f"{prefix}_amount")
@@ -830,9 +830,9 @@ def _render_product_add(backend: Backend, default_store_id: str, store_ids: list
         old_price = None
         new_price = None
         if price_case in ("price", "discount"):
-            new_price = st.number_input("Nova cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_new_price")
+            new_price = st.number_input("Nova cena (RSD)", min_value=0.01, max_value=PRICE_MAX, format="%.2f", key=f"{prefix}_new_price")
         if price_case == "discount":
-            old_price = st.number_input("Stara cena (RSD)", min_value=0.01, format="%.2f", key=f"{prefix}_old_price")
+            old_price = st.number_input("Stara cena (RSD)", min_value=0.01, max_value=PRICE_MAX, format="%.2f", key=f"{prefix}_old_price")
         col1, col2 = st.columns(2)
         with col1:
             amount = st.number_input("Amount", min_value=0, key=f"{prefix}_amount")

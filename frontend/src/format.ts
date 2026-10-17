@@ -1,5 +1,7 @@
 const SERBIA_TZ = 'Europe/Belgrade'
 
+export const PRICE_MAX = 9_999_999.99
+
 const belgradeFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: SERBIA_TZ,
   year: 'numeric',

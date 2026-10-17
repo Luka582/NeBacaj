@@ -530,7 +530,7 @@ function Announcement({ onClose, onSaved }: { onClose: () => void; onSaved?: () 
                         className="mt-3 h-32 w-full rounded-xl object-cover"
                       />
                     )}
-                    <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                    <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap break-words text-slate-700">
                       {description || <span className="text-slate-400">Nema opisa</span>}
                     </p>
                   </div>

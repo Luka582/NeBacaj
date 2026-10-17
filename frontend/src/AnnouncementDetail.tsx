@@ -147,7 +147,7 @@ function AnnouncementDetail({
 
             <section className="mt-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
               {store.announcement_description ? (
-                <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-slate-700">
                   {store.announcement_description}
                 </p>
               ) : (

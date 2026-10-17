@@ -228,7 +228,7 @@ function ProductDetail({
                 )}
                 {product.description ? (
                   <li className="pt-3 pb-1">
-                    <p className="text-sm leading-relaxed text-slate-700">{product.description}</p>
+                    <p className="text-sm leading-relaxed break-words text-slate-700">{product.description}</p>
                   </li>
                 ) : (
                   <li className="py-2.5 text-sm text-slate-400">Nema opisa</li>
