@@ -104,6 +104,44 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
   useBackLayer(open && recovering, () => setRecovering(false))
   useBackLayer(open && helpOpen, () => setHelpOpen(false))
 
+  // SettingsMenu stays mounted while closed, so clear any sub-view whenever the
+  // menu is dismissed. Otherwise reopening it would resume wherever the user
+  // left off (e.g. the change-password form).
+  useEffect(() => {
+    if (open) return
+    setChanging(false)
+    setRecovering(false)
+    setHelpOpen(false)
+    setCodeSent(false)
+    setError(null)
+    setLoginFailed(false)
+    setChangeFailed(false)
+    setPassword('')
+    setOldPassword('')
+    setNewPassword('')
+    setRepeatPassword('')
+    setRecoveryCode('')
+    setRecoveryNewPassword('')
+    setRecoveryRepeat('')
+  }, [open])
+
+  function handleBack() {
+    if (changing) {
+      setChanging(false)
+      return
+    }
+    if (recovering) {
+      setRecovering(false)
+      setCodeSent(false)
+      return
+    }
+    if (helpOpen) {
+      setHelpOpen(false)
+      return
+    }
+    onClose()
+  }
+
   useEffect(() => {
     if (!open || !session) return
     let cancelled = false
@@ -350,7 +388,7 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
       <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-2 py-3">
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleBack}
           aria-label="Nazad"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
         >
