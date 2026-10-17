@@ -639,6 +639,7 @@ function App() {
   function openStorePopup(storeId: string) {
     setDetailStoreId(null)
     setSearchProductOpen(null)
+    setSettingsOpen(false)
     setSheetExpanded(false)
     const s = stores.find((st) => st.id === storeId)
     if (s) {
@@ -1059,6 +1060,9 @@ function App() {
         onOpenAnnouncement={() => {
           setSettingsOpen(false)
           setAnnouncementOpen(true)
+        }}
+        onOpenStore={(storeId) => {
+          setDetailStoreId(storeId)
         }}
       />
       {myProductsOpen && <MyProducts onClose={() => setMyProductsOpen(false)} onChanged={loadStores} />}
