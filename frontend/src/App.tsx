@@ -1079,11 +1079,9 @@ function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onOpenMyProducts={() => {
-          setSettingsOpen(false)
           setMyProductsOpen(true)
         }}
         onOpenAnnouncement={() => {
-          setSettingsOpen(false)
           setAnnouncementOpen(true)
         }}
         onOpenStore={(storeId) => {
