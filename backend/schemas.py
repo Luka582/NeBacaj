@@ -1,10 +1,11 @@
 from pydantic import BaseModel, Field, model_validator
 from datetime import datetime
-from .db import StoreType, UserRole
+from .db import StoreType, UserRole, ReportReason
 
 NAME_MAX = 60
 DESC_MAX = 300
 PRICE_MAX = 9_999_999.99
+REPORT_COMMENT_MAX = 500
 
 
 class LoginRequest(BaseModel):
@@ -301,3 +302,22 @@ class AnnouncementUpdate(BaseModel):
     work_min_sat: int | None = Field(default=None, ge=0)
     open_min_sun: int | None = Field(default=None, ge=0, lt=1440)
     work_min_sun: int | None = Field(default=None, ge=0)
+
+
+class ReportCreate(BaseModel):
+    store_id: str
+    product_id: str | None = None
+    reason: ReportReason
+    comment: str | None = Field(default=None, max_length=REPORT_COMMENT_MAX)
+
+
+class ReportResponse(BaseModel):
+    id: str
+    store_id: str
+    store_name: str
+    product_id: str | None
+    product_name: str | None
+    reason: ReportReason
+    comment: str | None
+    is_resolved: bool
+    created_at: datetime

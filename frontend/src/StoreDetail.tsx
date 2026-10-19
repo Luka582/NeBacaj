@@ -5,6 +5,7 @@ import FreeTag from './FreeTag'
 import ProductDetail from './ProductDetail'
 import AnnouncementTag from './AnnouncementTag'
 import AnnouncementDetail from './AnnouncementDetail'
+import ReportDialog from './ReportDialog'
 import { useBackLayer } from './backStack'
 
 interface StoreDetailData {
@@ -100,6 +101,7 @@ function StoreDetail({
   const [loading, setLoading] = useState(true)
   const [productDetailId, setProductDetailId] = useState<string | null>(null)
   const [announcementDetail, setAnnouncementDetail] = useState<{ storeId: string; storeName: string } | null>(null)
+  const [reportOpen, setReportOpen] = useState(false)
 
   useBackLayer(productDetailId != null, () => setProductDetailId(null))
   useBackLayer(announcementDetail != null, () => setAnnouncementDetail(null))
@@ -204,6 +206,27 @@ function StoreDetail({
             >
               {isClosed ? 'Zatvoreno' : 'Otvoreno'}
             </span>
+          )}
+          {store && (
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              aria-label="Prijavi problem"
+              className="-mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+              >
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                <line x1="4" y1="22" x2="4" y2="15" />
+              </svg>
+            </button>
           )}
         </div>
       </div>
@@ -488,6 +511,14 @@ function StoreDetail({
             setAnnouncementDetail(null)
             onViewStore?.(id)
           }}
+        />
+      )}
+      {store && (
+        <ReportDialog
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          storeId={store.id}
+          storeName={store.name}
         />
       )}
     </div>

@@ -50,7 +50,7 @@ def send_temporary_password(email: str, temp_password: str) -> bool:
 
 
 def send_recovery_code(email: str, code: str, expires_minutes: int) -> bool:
-    if not SENDER_EMAIL or not SENDER_APP_PASSWORD or not SENDER_EMAIL_ALIAS:
+    if not SENDER_EMAIL or not SENDER_EMAIL_APP_PASSWORD or not SENDER_EMAIL_ALIAS:
         return False
     body = (
         "Pozdrav,\n\n"
@@ -61,4 +61,42 @@ def send_recovery_code(email: str, code: str, expires_minutes: int) -> bool:
         "— NeBacaj tim"
     )
     _send("Vaš NeBacaj kod za obnovu lozinke", body, email)
+    return True
+
+
+REPORT_REASON_LABELS = {
+    "wrong_price": "Netačna cena",
+    "wrong_info": "Netačni podaci",
+    "unavailable": "Nema više proizvoda",
+    "closed": "Radnja je zatvorena",
+    "offensive": "Uvredljiv ili neprikladan sadržaj",
+    "other": "Drugo",
+}
+
+
+def send_report_notification(
+    store_name: str,
+    product_name: str | None,
+    reason: str,
+    comment: str | None,
+    created_at: str,
+) -> bool:
+    if not CONTACT_EMAIL:
+        return False
+    reason_label = REPORT_REASON_LABELS.get(reason, reason)
+    lines = [
+        "Nova prijava na NeBacaj.",
+        "",
+        f"Radnja: {store_name}",
+    ]
+    if product_name:
+        lines.append(f"Proizvod: {product_name}")
+    lines += [
+        f"Razlog: {reason_label}",
+        f"Vreme: {created_at}",
+    ]
+    if comment:
+        lines += ["", f"Komentar: {comment}"]
+    body = "\n".join(lines) + "\n\n— NeBacaj"
+    _send(f"Nova prijava: {reason_label}", body, CONTACT_EMAIL)
     return True

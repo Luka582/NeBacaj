@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { cropImageUrl, formatPrice, formatShortDate, relativeTimeAgo } from './format'
 import { useBackLayer } from './backStack'
 import FreeTag from './FreeTag'
+import ReportDialog from './ReportDialog'
 
 interface ProductData {
   id: string
@@ -32,6 +33,7 @@ function ProductDetail({
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [imageFull, setImageFull] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
 
   useBackLayer(imageFull, () => setImageFull(false))
 
@@ -129,6 +131,27 @@ function ProductDetail({
                 <circle cx="18" cy="19" r="3" />
                 <path d="m8.59 13.51 6.83 3.98" />
                 <path d="m15.41 6.51-6.82 3.98" />
+              </svg>
+            </button>
+          )}
+          {product && (
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              aria-label="Prijavi problem"
+              className="-mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+              >
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                <line x1="4" y1="22" x2="4" y2="15" />
               </svg>
             </button>
           )}
@@ -282,6 +305,16 @@ function ProductDetail({
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+      {product && (
+        <ReportDialog
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          storeId={product.store_id}
+          storeName={storeName}
+          productId={product.id}
+          productName={product.name}
+        />
       )}
     </div>
   )

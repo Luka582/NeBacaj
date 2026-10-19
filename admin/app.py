@@ -219,7 +219,7 @@ def render_sidebar() -> str:
             for key in ("token", "role", "email", "must_change_password"):
                 st.session_state.pop(key, None)
             st.rerun()
-    return st.sidebar.radio("Section", ["Stores", "Products", "Workers", "Database"])
+    return st.sidebar.radio("Section", ["Stores", "Products", "Workers", "Reports", "Database"])
 
 
 # ------------------------------------------------------------------- stores
@@ -981,6 +981,76 @@ def page_workers(backend: Backend) -> None:
                     handle_backend_error(error)
 
 
+# ------------------------------------------------------------------ reports
+
+
+REPORT_REASON_LABELS = {
+    "wrong_price": "Netačna cena",
+    "wrong_info": "Netačni podaci",
+    "unavailable": "Nema više proizvoda",
+    "closed": "Radnja je zatvorena",
+    "offensive": "Uvredljiv ili neprikladan sadržaj",
+    "other": "Drugo",
+}
+
+
+def page_reports(backend: Backend) -> None:
+    st.subheader("Reports")
+    try:
+        open_reports = backend.list_reports(False)
+    except BackendError as error:
+        handle_backend_error(error)
+        return
+
+    if open_reports:
+        st.warning(f"Nerešenih prijava: {len(open_reports)}")
+    else:
+        st.success("Nema nerešenih prijava.")
+
+    status = st.radio(
+        "Filter",
+        ["Nerešene", "Rešene", "Sve"],
+        horizontal=True,
+        key="reports_filter",
+    )
+    filter_value = {"Nerešene": False, "Rešene": True, "Sve": None}[status]
+    try:
+        reports = backend.list_reports(filter_value)
+    except BackendError as error:
+        handle_backend_error(error)
+        return
+
+    if not reports:
+        st.info("Nema prijava za izabrani filter.")
+        return
+
+    for report in reports:
+        reason_label = REPORT_REASON_LABELS.get(report["reason"], report["reason"])
+        product = report.get("product_name")
+        title = f"{report['store_name']}" + (f" - {product}" if product else "")
+        flag = " (rešeno)" if report["is_resolved"] else ""
+        with st.container(border=True):
+            col_main, col_action = st.columns([5, 1])
+            with col_main:
+                if report["reason"] == "offensive":
+                    st.markdown(f":red[**{reason_label}**] - **{title}**{flag}")
+                else:
+                    st.markdown(f"**{reason_label}** - **{title}**{flag}")
+                st.caption(f"{report['created_at']}")
+                if report.get("comment"):
+                    st.write(report["comment"])
+            with col_action:
+                if not report["is_resolved"]:
+                    if st.button("Reši", key=f"resolve_{report['id']}", use_container_width=True):
+                        try:
+                            backend.resolve_report(report["id"])
+                        except BackendError as error:
+                            handle_backend_error(error)
+                        else:
+                            flash_message("success", "Prijava je označena kao rešena.")
+                            st.rerun()
+
+
 def page_database(backend: Backend) -> None:
     st.subheader("Database export")
     st.info("Export celokupne baze BEZ proizvoda (koristi se kao ručni backup).")
@@ -1027,5 +1097,7 @@ elif page == "Products":
     page_products(backend)
 elif page == "Database":
     page_database(backend)
+elif page == "Reports":
+    page_reports(backend)
 else:
     page_workers(backend)
