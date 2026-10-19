@@ -9,6 +9,15 @@ body,
   margin: 0;
 }
 
+/* The app is a full-screen layout with its own internal scroll areas. Lock the
+   document so the static SEO footer (kept in the DOM for crawlers) can never be
+   scrolled into view. */
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
 }
