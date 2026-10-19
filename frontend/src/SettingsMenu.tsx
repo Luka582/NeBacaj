@@ -194,10 +194,12 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
   const [recoveryCode, setRecoveryCode] = useState('')
   const [recoveryNewPassword, setRecoveryNewPassword] = useState('')
   const [recoveryRepeat, setRecoveryRepeat] = useState('')
+  const [confirmLogout, setConfirmLogout] = useState(false)
 
   useBackLayer(open && changing, () => setChanging(false))
   useBackLayer(open && recovering, () => setRecovering(false))
   useBackLayer(open && helpOpen, () => setHelpOpen(false))
+  useBackLayer(open && confirmLogout, () => setConfirmLogout(false))
 
   // SettingsMenu stays mounted while closed, so clear any sub-view whenever the
   // menu is dismissed. Otherwise reopening it would resume wherever the user
@@ -207,6 +209,7 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
     setChanging(false)
     setRecovering(false)
     setHelpOpen(false)
+    setConfirmLogout(false)
     setCodeSent(false)
     setError(null)
     setLoginFailed(false)
@@ -221,6 +224,10 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
   }, [open])
 
   function handleBack() {
+    if (confirmLogout) {
+      setConfirmLogout(false)
+      return
+    }
     if (changing) {
       setChanging(false)
       return
@@ -457,6 +464,7 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
     setChanging(false)
     setRecovering(false)
     setHelpOpen(false)
+    setConfirmLogout(false)
     setCodeSent(false)
     setLoginFailed(false)
     setError(null)
@@ -476,7 +484,8 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
       onKeyDown={(e) => {
         if (open && e.key === 'Escape') {
           e.stopPropagation()
-          onClose()
+          if (confirmLogout) setConfirmLogout(false)
+          else onClose()
         }
       }}
     >
@@ -512,50 +521,59 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
         onTouchMove={dismissKeyboard}
       >
         {session && changing ? (
-          <form onSubmit={handleChangePassword} className="space-y-3">
-            <h2 className="text-sm font-bold text-slate-900">Promena lozinke</h2>
-            <p className="text-xs text-slate-500">
-              Privremena lozinka se mora promeniti pri prvoj prijavi.
-            </p>
-            <PasswordInput
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              placeholder="Trenutna lozinka"
-              autoComplete="current-password"
-              className={inputClass}
-            />
-            <PasswordInput
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Nova lozinka (min. 8 karaktera)"
-              autoComplete="new-password"
-              className={inputClass}
-            />
-            <PasswordInput
-              value={repeatPassword}
-              onChange={(e) => setRepeatPassword(e.target.value)}
-              placeholder="Ponovite novu lozinku"
-              autoComplete="new-password"
-              className={inputClass}
-            />
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            {changeFailed && (
-              <button
-                type="button"
-                onClick={startRecovery}
-                className="w-full text-sm text-brand-600 underline"
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <h2 className="px-1 text-xs font-bold tracking-wide text-slate-400 uppercase">
+                Promena lozinke
+              </h2>
+              <form
+                onSubmit={handleChangePassword}
+                className="space-y-3 rounded-xl border border-slate-100 bg-white p-4"
               >
-                Zaboravili ste lozinku?
-              </button>
-            )}
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
-            >
-              Promeni lozinku
-            </button>
-          </form>
+                <p className="text-xs text-slate-500">
+                  Privremena lozinka se mora promeniti pri prvoj prijavi.
+                </p>
+                <PasswordInput
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  placeholder="Trenutna lozinka"
+                  autoComplete="current-password"
+                  className={inputClass}
+                />
+                <PasswordInput
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Nova lozinka (min. 8 karaktera)"
+                  autoComplete="new-password"
+                  className={inputClass}
+                />
+                <PasswordInput
+                  value={repeatPassword}
+                  onChange={(e) => setRepeatPassword(e.target.value)}
+                  placeholder="Ponovite novu lozinku"
+                  autoComplete="new-password"
+                  className={inputClass}
+                />
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                {changeFailed && (
+                  <button
+                    type="button"
+                    onClick={startRecovery}
+                    className="w-full text-sm text-brand-600 underline"
+                  >
+                    Zaboravili ste lozinku?
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
+                >
+                  Promeni lozinku
+                </button>
+              </form>
+            </div>
+          </div>
         ) : session && helpOpen ? (
           <Help onBack={() => setHelpOpen(false)} />
         ) : session ? (
@@ -610,73 +628,88 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
                     setHelpOpen(true)
                   }}
                 />
-                <SettingsRow icon={<IconLogout />} label="Odjavi se" tone="danger" onClick={logout} />
+                <SettingsRow
+                  icon={<IconLogout />}
+                  label="Odjavi se"
+                  tone="danger"
+                  onClick={() => setConfirmLogout(true)}
+                />
               </div>
             </div>
           </div>
         ) : recovering ? (
-          <div className="space-y-3">
-            <h2 className="text-sm font-bold text-slate-900">Oporavak lozinke</h2>
-            {!codeSent ? (
-              <form onSubmit={handleRequestCode} className="space-y-3">
-                <p className="text-xs text-slate-500">
-                  Unesite e-adresu da biste dobili kôd za oporavak.
-                </p>
-                <input
-                  type="email"
-                  value={recoverEmail}
-                  onChange={(e) => setRecoverEmail(e.target.value)}
-                  placeholder="E-adresa"
-                  autoComplete="email"
-                  className={inputClass}
-                />
-                {error && <p className="text-sm text-red-500">{error}</p>}
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <h2 className="px-1 text-xs font-bold tracking-wide text-slate-400 uppercase">
+                Oporavak lozinke
+              </h2>
+              {!codeSent ? (
+                <form
+                  onSubmit={handleRequestCode}
+                  className="space-y-3 rounded-xl border border-slate-100 bg-white p-4"
                 >
-                  Pošalji kôd
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleRecover} className="space-y-3">
-                <p className="text-xs text-slate-500">
-                  Kôd je poslat (ako e-adresa postoji). Unesite kôd i novu lozinku.
-                </p>
-                <input
-                  type="text"
-                  value={recoveryCode}
-                  onChange={(e) => setRecoveryCode(e.target.value)}
-                  placeholder="Kôd za oporavak"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  className={inputClass}
-                />
-                <PasswordInput
-                  value={recoveryNewPassword}
-                  onChange={(e) => setRecoveryNewPassword(e.target.value)}
-                  placeholder="Nova lozinka (min. 8 karaktera)"
-                  autoComplete="new-password"
-                  className={inputClass}
-                />
-                <PasswordInput
-                  value={recoveryRepeat}
-                  onChange={(e) => setRecoveryRepeat(e.target.value)}
-                  placeholder="Ponovite novu lozinku"
-                  autoComplete="new-password"
-                  className={inputClass}
-                />
-                {error && <p className="text-sm text-red-500">{error}</p>}
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
+                  <p className="text-xs text-slate-500">
+                    Unesite e-adresu da biste dobili kôd za oporavak.
+                  </p>
+                  <input
+                    type="email"
+                    value={recoverEmail}
+                    onChange={(e) => setRecoverEmail(e.target.value)}
+                    placeholder="E-adresa"
+                    autoComplete="email"
+                    className={inputClass}
+                  />
+                  {error && <p className="text-sm text-red-500">{error}</p>}
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
+                  >
+                    Pošalji kôd
+                  </button>
+                </form>
+              ) : (
+                <form
+                  onSubmit={handleRecover}
+                  className="space-y-3 rounded-xl border border-slate-100 bg-white p-4"
                 >
-                  Poništi lozinku
-                </button>
-              </form>
-            )}
+                  <p className="text-xs text-slate-500">
+                    Kôd je poslat (ako e-adresa postoji). Unesite kôd i novu lozinku.
+                  </p>
+                  <input
+                    type="text"
+                    value={recoveryCode}
+                    onChange={(e) => setRecoveryCode(e.target.value)}
+                    placeholder="Kôd za oporavak"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    className={inputClass}
+                  />
+                  <PasswordInput
+                    value={recoveryNewPassword}
+                    onChange={(e) => setRecoveryNewPassword(e.target.value)}
+                    placeholder="Nova lozinka (min. 8 karaktera)"
+                    autoComplete="new-password"
+                    className={inputClass}
+                  />
+                  <PasswordInput
+                    value={recoveryRepeat}
+                    onChange={(e) => setRecoveryRepeat(e.target.value)}
+                    placeholder="Ponovite novu lozinku"
+                    autoComplete="new-password"
+                    className={inputClass}
+                  />
+                  {error && <p className="text-sm text-red-500">{error}</p>}
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
+                  >
+                    Poništi lozinku
+                  </button>
+                </form>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -690,46 +723,53 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
             </button>
           </div>
         ) : (
-          <form onSubmit={handleLogin} className="space-y-3">
-            <h2 className="text-sm font-bold text-slate-900">Prijavite se</h2>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="E-adresa"
-              autoComplete="email"
-              className={inputClass}
-            />
-            <PasswordInput
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Lozinka"
-              autoComplete="current-password"
-              className={inputClass}
-            />
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
-            >
-              Prijavi se
-            </button>
-            {loginFailed && (
-              <button
-                type="button"
-                onClick={startRecovery}
-                className="w-full text-sm text-brand-600 underline"
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <h2 className="px-1 text-xs font-bold tracking-wide text-slate-400 uppercase">Prijava</h2>
+              <form
+                onSubmit={handleLogin}
+                className="space-y-3 rounded-xl border border-slate-100 bg-white p-4"
               >
-                Zaboravili ste lozinku?
-              </button>
-            )}
-            <p className="text-xs text-slate-400">Prijava je namenjena radničkim nalozima.</p>
-          </form>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="E-adresa"
+                  autoComplete="email"
+                  className={inputClass}
+                />
+                <PasswordInput
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Lozinka"
+                  autoComplete="current-password"
+                  className={inputClass}
+                />
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
+                >
+                  Prijavi se
+                </button>
+                {loginFailed && (
+                  <button
+                    type="button"
+                    onClick={startRecovery}
+                    className="w-full text-sm text-brand-600 underline"
+                  >
+                    Zaboravili ste lozinku?
+                  </button>
+                )}
+                <p className="text-xs text-slate-400">Prijava je namenjena radničkim nalozima.</p>
+              </form>
+            </div>
+          </div>
         )}
 
         <div className="mt-4 border-t border-slate-100 pt-4">
-          <h2 className="text-sm font-bold text-slate-900">Pomoć i kontakt</h2>
+          <h2 className="px-1 text-xs font-bold tracking-wide text-slate-400 uppercase">Pomoć i kontakt</h2>
           <a
             href={`mailto:${SUPPORT_EMAIL}`}
             className="mt-2 inline-flex items-center gap-2 text-sm text-brand-600"
@@ -750,6 +790,34 @@ function SettingsMenu({ open, onClose, onOpenMyProducts, onOpenAnnouncement, onO
           </a>
         </div>
       </div>
+
+      {confirmLogout && (
+        <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-black/40 px-4">
+          <div className="absolute inset-0" onClick={() => setConfirmLogout(false)} />
+          <div className="relative w-full max-w-xs rounded-2xl bg-white p-4">
+            <p className="text-sm font-semibold text-slate-800">Odjaviti se?</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Da li ste sigurni da želite da se odjavite?
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(false)}
+                className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-600 active:bg-slate-50"
+              >
+                Otkaži
+              </button>
+              <button
+                type="button"
+                onClick={logout}
+                className="flex-1 rounded-lg bg-red-500 py-2 text-sm font-semibold text-white active:bg-red-600"
+              >
+                Odjavi se
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
