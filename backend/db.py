@@ -52,6 +52,15 @@ class UserRole(StrEnum):
     worker = "worker"
 
 
+class ReportReason(StrEnum):
+    wrong_price = "wrong_price"
+    wrong_info = "wrong_info"
+    unavailable = "unavailable"
+    closed = "closed"
+    offensive = "offensive"
+    other = "other"
+
+
 class Store(Base):
     __tablename__ = "stores"
 
@@ -170,6 +179,31 @@ class MaintenanceRun(Base):
     ran_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia)
 
 
+class Report(Base):
+    __tablename__ = "reports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    store_id: Mapped[str] = mapped_column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
+    product_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("products.id"), nullable=True, index=True
+    )
+    reason: Mapped[ReportReason] = mapped_column(
+        Enum(
+            ReportReason.wrong_price,
+            ReportReason.wrong_info,
+            ReportReason.unavailable,
+            ReportReason.closed,
+            ReportReason.offensive,
+            ReportReason.other,
+            name="report_reason",
+        ),
+        nullable=False,
+    )
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_resolved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=now_serbia, index=True)
+
+
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -197,6 +231,10 @@ async def init_db() -> None:
             "CREATE INDEX IF NOT EXISTS ix_products_creation_date ON products (creation_date)",
             "CREATE INDEX IF NOT EXISTS ix_users_store_id ON users (store_id)",
             "CREATE INDEX IF NOT EXISTS ix_recovery_codes_user_id ON recovery_codes (user_id)",
+            "CREATE INDEX IF NOT EXISTS ix_reports_store_id ON reports (store_id)",
+            "CREATE INDEX IF NOT EXISTS ix_reports_product_id ON reports (product_id)",
+            "CREATE INDEX IF NOT EXISTS ix_reports_created_at ON reports (created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_reports_is_resolved ON reports (is_resolved)",
         ):
             await conn.exec_driver_sql(stmt)
 

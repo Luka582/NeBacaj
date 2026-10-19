@@ -152,5 +152,13 @@ class Backend:
     def delete_worker(self, worker_id: str) -> None:
         self._request("DELETE", f"/workers/{worker_id}")
 
+    # --- reports --------------------------------------------------------
+    def list_reports(self, is_resolved: bool | None = None) -> list[dict]:
+        params = {} if is_resolved is None else {"is_resolved": is_resolved}
+        return self._request("GET", "/reports", params=params)
+
+    def resolve_report(self, report_id: str) -> dict:
+        return self._request("POST", f"/reports/{report_id}/resolve")
+
     def export_db(self) -> bytes:
         return self._request("GET", "/admin/export-db", parse_json=False)

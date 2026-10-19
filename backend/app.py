@@ -22,8 +22,8 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .cleanup import cleanup_cutoff, cleanup_old_products, claim_run, run_key_for
-from .db import MaintenanceRun, Store, Product, User, UserRole, RecoveryCode, StoreType, SERBIA_TZ, async_session, get_session, init_db, now_serbia
-from .emailer import send_recovery_code, send_temporary_password
+from .db import MaintenanceRun, Store, Product, User, UserRole, RecoveryCode, Report, ReportReason, StoreType, SERBIA_TZ, async_session, get_session, init_db, now_serbia
+from .emailer import send_recovery_code, send_report_notification, send_temporary_password
 from .images import delete_image, upload_image
 from .schemas import (
     AnnouncementUpdate,
@@ -35,6 +35,8 @@ from .schemas import (
     ProductSearchResult,
     ProductUpdate,
     RecoverAccount,
+    ReportCreate,
+    ReportResponse,
     RequestRecoveryCode,
     StoreCreate,
     StoreMinimalResponse,
@@ -136,6 +138,9 @@ LOGIN_MAX_ATTEMPTS = 5
 LOGIN_COOLDOWN_SECONDS = 300
 _login_attempts: dict[str, list[float]] = {}
 DUMMY_PASSWORD_HASH = hash_password("nebacaj-dummy-password-for-timing")
+
+REPORT_COOLDOWN_SECONDS = 30
+_report_cooldown: dict[str, float] = {}
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
@@ -1334,3 +1339,110 @@ async def reactivate_product(
     product.expiration_date = None
     await db.commit()
     return ProductResponse.model_validate(product)
+
+
+def _prune_report_cooldown() -> None:
+    cutoff = datetime.now(SERBIA_TZ).timestamp() - REPORT_COOLDOWN_SECONDS
+    stale = [key for key, stamp in _report_cooldown.items() if stamp < cutoff]
+    for key in stale:
+        del _report_cooldown[key]
+
+
+def _report_response(report: Report, store_name: str, product_name: str | None) -> ReportResponse:
+    return ReportResponse(
+        id=report.id,
+        store_id=report.store_id,
+        store_name=store_name,
+        product_id=report.product_id,
+        product_name=product_name,
+        reason=report.reason,
+        comment=report.comment,
+        is_resolved=report.is_resolved,
+        created_at=report.created_at,
+    )
+
+
+@app.post("/reports")
+async def create_report(
+    body: ReportCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_session),
+) -> dict[str, str]:
+    """POST /reports — submit an anonymous problem report about a store or product."""
+    store = await _get_store_or_404(body.store_id, db)
+    product: Product | None = None
+    if body.product_id is not None:
+        product = await _get_product_or_404(body.product_id, db)
+        if product.store_id != store.id:
+            raise HTTPException(status_code=400, detail="Product does not belong to this store")
+
+    client_ip = request.client.host if request.client else ""
+    now = datetime.now(SERBIA_TZ).timestamp()
+    _prune_report_cooldown()
+    last = _report_cooldown.get(client_ip)
+    if last is not None and now - last < REPORT_COOLDOWN_SECONDS:
+        raise HTTPException(status_code=429, detail="Previše prijava, sačekajte trenutak")
+    _report_cooldown[client_ip] = now
+
+    comment = body.comment.strip() if body.comment else None
+    report = Report(
+        store_id=store.id,
+        product_id=product.id if product is not None else None,
+        reason=body.reason,
+        comment=comment or None,
+    )
+    db.add(report)
+    await db.commit()
+    await db.refresh(report)
+
+    created = report.created_at.astimezone(SERBIA_TZ).strftime("%d.%m.%Y %H:%M")
+    try:
+        send_report_notification(
+            store_name=store.name,
+            product_name=product.name if product is not None else None,
+            reason=report.reason.value,
+            comment=report.comment,
+            created_at=created,
+        )
+    except Exception:
+        logger.exception("Failed to send report notification email")
+
+    return {"detail": "Prijava je poslata"}
+
+
+@app.get("/reports", response_model=list[ReportResponse], dependencies=[Depends(require_admin)])
+async def list_reports(
+    is_resolved: bool | None = Query(default=None, description="Filter by resolution status"),
+    db: AsyncSession = Depends(get_session),
+) -> list[ReportResponse]:
+    """GET /reports — list submitted problem reports, newest first (admin only)."""
+    query = (
+        select(Report, Store.name, Product.name)
+        .join(Store, Store.id == Report.store_id)
+        .outerjoin(Product, Product.id == Report.product_id)
+        .order_by(Report.created_at.desc())
+    )
+    if is_resolved is not None:
+        query = query.where(Report.is_resolved == is_resolved)
+    rows = (await db.execute(query)).all()
+    return [_report_response(report, store_name, product_name) for report, store_name, product_name in rows]
+
+
+@app.post("/reports/{report_id}/resolve", response_model=ReportResponse, dependencies=[Depends(require_admin)])
+async def resolve_report(report_id: str, db: AsyncSession = Depends(get_session)) -> ReportResponse:
+    """POST /reports/{id}/resolve — mark a report as resolved (admin only)."""
+    result = await db.execute(select(Report).where(Report.id == report_id))
+    report = result.scalar_one_or_none()
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    report.is_resolved = True
+    await db.commit()
+    await db.refresh(report)
+    store = await _get_store_or_404(report.store_id, db)
+    product_name: str | None = None
+    if report.product_id is not None:
+        product = (
+            await db.execute(select(Product).where(Product.id == report.product_id))
+        ).scalar_one_or_none()
+        product_name = product.name if product is not None else None
+    return _report_response(report, store.name, product_name)

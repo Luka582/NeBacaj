@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 
 /**
  * Browser-back handling for in-app overlays.
@@ -43,7 +44,10 @@ function onPopState() {
     const top = openLayers.pop()
     if (top) {
       top.poppedByBack = true
-      top.close()
+      // popstate fires outside React, so flush the resulting state update now.
+      // Otherwise some browsers defer the repaint until the next input event,
+      // leaving the closed overlay on screen until the user taps again.
+      flushSync(() => top.close())
     }
     return
   }
