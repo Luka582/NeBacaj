@@ -26,6 +26,7 @@ from .db import MaintenanceRun, Store, Product, User, UserRole, RecoveryCode, Re
 from .emailer import send_recovery_code, send_report_notification, send_temporary_password
 from .images import delete_image, upload_image
 from .schemas import (
+    REPORT_COMMENT_MIN,
     AnnouncementUpdate,
     ChangePasswordRequest,
     LoginRequest,
@@ -1369,6 +1370,8 @@ async def create_report(
     db: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
     """POST /reports — submit an anonymous problem report about a store or product."""
+    if report.comment is None or len(report.comment.strip()) < REPORT_COMMENT_MIN:
+        raise HTTPException(status_code=422, detail="Komentar mora da sadrži najmanje 50 karaktera.")
     store = await _get_store_or_404(body.store_id, db)
     product: Product | None = None
     if body.product_id is not None:

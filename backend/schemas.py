@@ -6,6 +6,7 @@ NAME_MAX = 60
 DESC_MAX = 300
 PRICE_MAX = 9_999_999.99
 REPORT_COMMENT_MAX = 500
+REPORT_COMMENT_MIN = 50
 
 
 class LoginRequest(BaseModel):
@@ -308,7 +309,7 @@ class ReportCreate(BaseModel):
     store_id: str
     product_id: str | None = None
     reason: ReportReason
-    comment: str | None = Field(default=None, max_length=REPORT_COMMENT_MAX)
+    comment: str | None = Field(default=None, min_length=REPORT_COMMENT_MIN, max_length=REPORT_COMMENT_MAX)
 
 
 class ReportResponse(BaseModel):

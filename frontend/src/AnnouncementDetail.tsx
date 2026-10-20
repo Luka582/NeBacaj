@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { cropImageUrl } from './format'
 import { useBackLayer } from './backStack'
+import ReportDialog from './ReportDialog'
 
 interface AnnouncementStore {
   id: string
@@ -24,6 +25,7 @@ function AnnouncementDetail({
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [imageFull, setImageFull] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
 
   useBackLayer(imageFull, () => setImageFull(false))
 
@@ -85,6 +87,27 @@ function AnnouncementDetail({
             <h1 className="truncate text-lg leading-tight font-bold text-slate-900">Opšte obaveštenje</h1>
             <p className="truncate text-xs text-slate-500">{store?.name ?? storeName}</p>
           </div>
+          {store && (
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              aria-label="Prijavi problem"
+              className="-mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+              >
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                <line x1="4" y1="22" x2="4" y2="15" />
+              </svg>
+            </button>
+          )}
         </div>
       </header>
 
@@ -201,6 +224,14 @@ function AnnouncementDetail({
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+          {store && (
+        <ReportDialog
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          storeId={storeId}
+          storeName={store.name}
+        />
       )}
     </div>
   )

@@ -3,6 +3,7 @@ import { CharCounter } from './CharCounter'
 import { useBackLayer } from './backStack'
 
 export const REPORT_COMMENT_MAX = 500
+export const REPORT_COMMENT_MIN = 50
 
 const REASONS: { value: string; label: string }[] = [
   { value: 'wrong_price', label: 'Netačna cena' },
@@ -152,7 +153,7 @@ function ReportDialog({
                 value={comment}
                 onChange={(e) => setComment(e.target.value.slice(0, REPORT_COMMENT_MAX))}
                 rows={3}
-                placeholder="Opišite problem..."
+                placeholder="Opišite problem... (najmanje 50 karaktera)"
                 className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
               />
             </div>
@@ -170,7 +171,7 @@ function ReportDialog({
               <button
                 type="button"
                 onClick={submit}
-                disabled={!reason || sending || comment.length > REPORT_COMMENT_MAX}
+                disabled={!reason || sending || comment.trim().length < REPORT_COMMENT_MIN || comment.length > REPORT_COMMENT_MAX}
                 className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white active:bg-brand-700 disabled:opacity-50"
               >
                 {sending ? 'Šaljem...' : 'Pošalji'}
